@@ -4,8 +4,9 @@ These mirror the tidy data schema (HANDOFF.md §3). The two structural dimension
 `unite` and `concept_patrimoine`, are the Convention and must be preserved and
 exposed everywhere (DB -> API -> UI). See CONTEXT.md.
 
-STUB: types are defined; query/response models match the contract. Endpoint
-logic in main.py is not implemented yet.
+On `/api/series`, `concept` is a required query parameter and `unite` is derived
+from `source` (ADR 0002) — these are request-side rules; the response models
+below always echo both back.
 """
 
 from __future__ import annotations

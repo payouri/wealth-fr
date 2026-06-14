@@ -20,11 +20,12 @@ export const api = {
     source: string;
     indicateur: string;
     groupe: string;
-    concept?: string;
-    unite?: string;
+    concept: string; // required (ADR 0002): never receive a mixed-Convention curve
+    unite?: string; // derived from source server-side; optional
     annee_min?: number;
     annee_max?: number;
     euros_constants?: boolean;
+    millesime?: string;
   }) => get<Series>("/series", params),
   // TODO: compare, revisions, sources, export.csv
 };

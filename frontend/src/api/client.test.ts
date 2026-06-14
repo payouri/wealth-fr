@@ -36,12 +36,13 @@ describe("api.series", () => {
     expect(url).toContain("source=WID");
   });
 
-  it("omits unset optional params", async () => {
+  it("omits unset optional params (unite derived server-side)", async () => {
     const fetchMock = mockFetch({ points: [] });
-    await api.series({ source: "INSEE", indicateur: "gini", groupe: "ensemble" });
+    // `concept` is required (ADR 0002); `unite` is optional and derived from source.
+    await api.series({ source: "INSEE", indicateur: "gini", groupe: "ensemble", concept: "brut" });
 
     const url = String(fetchMock.mock.calls[0]?.[0]);
-    expect(url).not.toContain("concept=");
+    expect(url).toContain("concept=brut");
     expect(url).not.toContain("unite=");
   });
 });

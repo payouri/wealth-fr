@@ -1,13 +1,13 @@
 """FastAPI app — the API contract from HANDOFF.md §6.4.
 
-STUB: routes are declared with response models so the contract is visible and
-testable, but bodies are not implemented (jalon 3 starts with a real WID/DGFiP
-integration test, then /api/meta + /api/series).
+`/api/meta` and `/api/series` are implemented (jalon 3); `/api/compare`,
+`/api/revisions`, and `/api/sources` remain stubs. Route bodies stay thin and
+delegate the §3 / guard-rail logic to `data.py`.
 """
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import data
@@ -48,17 +48,31 @@ def series(
     annee_min: int = 2000,
     annee_max: int | None = None,
     euros_constants: bool = False,
+    millesime: str | None = None,
 ):
-    return data.get_series(
-        source=source,
-        indicateur=indicateur,
-        groupe=groupe,
-        concept=concept,
-        unite=unite,
-        annee_min=annee_min,
-        annee_max=annee_max,
-        euros_constants=euros_constants,
-    )  # TODO(jalon 3)
+    """One Convention-pinned, single-Millésime series (ADR 0002).
+
+    `concept` is part of the required contract (the frontend always sends it);
+    the backend additionally guards: if filters still span more than one
+    Convention, it returns 422 with the available choices rather than merging.
+    """
+    try:
+        return data.get_series(
+            source=source,
+            indicateur=indicateur,
+            groupe=groupe,
+            concept=concept,
+            unite=unite,
+            annee_min=annee_min,
+            annee_max=annee_max,
+            euros_constants=euros_constants,
+            millesime=millesime,
+        )
+    except data.AmbiguousConvention as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "ambiguous_convention", "choices": exc.choices},
+        ) from exc
 
 
 @app.get("/api/compare")

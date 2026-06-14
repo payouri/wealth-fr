@@ -198,7 +198,7 @@ wealth-fr/
 | Method | Endpoint          | Description                                                                                                 |
 | ------ | ----------------- | ----------------------------------------------------------------------------------------------------------- |
 | `GET`  | `/api/meta`       | Value lists: sources, indicateurs, groupes, conventions, millésimes                                         |
-| `GET`  | `/api/series`     | Filtered series. Query: `source, indicateur, groupe, concept, unite, annee_min, annee_max, euros_constants` |
+| `GET`  | `/api/series`     | Filtered series. Query: `source, indicateur, groupe, concept` **(required)**`, unite` (optional, derived from `source`)`, annee_min, annee_max, euros_constants, millesime`. One Convention + one Millésime; ambiguous Conventions → `422` with choices (ADR 0002). |
 | `GET`  | `/api/compare`    | Same indicateur/groupe across several sources                                                               |
 | `GET`  | `/api/revisions`  | Observations with several millésimes (value diff)                                                           |
 | `GET`  | `/api/sources`    | Metadata + attributions/licences (see §7)                                                                   |
