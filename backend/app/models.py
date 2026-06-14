@@ -53,6 +53,7 @@ class Series(BaseModel):
     points: list[Point]
     ruptures: list[Rupture] = []
     millesime_source: str
+    date_extraction: str = ""  # traceability: when this millésime was pulled (§3, §7)
 
 
 class RevisionDiff(BaseModel):

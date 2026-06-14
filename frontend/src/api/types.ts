@@ -41,6 +41,19 @@ export interface Series {
   points: Point[];
   ruptures: Rupture[];
   millesime_source: string;
+  date_extraction: string;
+}
+
+/** One Convention the caller may pin to resolve a `422` (ADR 0002). */
+export interface ConventionChoice {
+  unite: string;
+  concept_patrimoine: Concept;
+}
+
+/** `422` body when filters still span more than one Convention. */
+export interface AmbiguousConventionDetail {
+  error: "ambiguous_convention";
+  choices: ConventionChoice[];
 }
 
 export interface RevisionDiff {

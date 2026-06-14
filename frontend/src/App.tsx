@@ -1,44 +1,67 @@
-import { useState } from "react";
+import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import Comparison from "./views/Comparison";
 import Dashboard from "./views/Dashboard";
 import SourcesMethodo from "./views/SourcesMethodo";
 
-type View = "dashboard" | "comparison" | "sources";
-
-const TABS: { id: View; label: string }[] = [
-  { id: "dashboard", label: "Tableau de bord" },
-  { id: "comparison", label: "Comparaison de sources" },
-  { id: "sources", label: "Sources & méthodologie" },
+const TABS = [
+  { to: "/dashboard", label: "Tableau de bord" },
+  { to: "/comparison", label: "Comparaison de sources" },
+  { to: "/sources", label: "Sources & méthodologie" },
 ];
 
-export default function App() {
-  const [view, setView] = useState<View>("dashboard");
-
+function Tab({ to, label }: { to: string; label: string }) {
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
-      <header className="border-b bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-4">
-          <h1 className="text-xl font-semibold">
-            Concentration du patrimoine en France depuis 2000
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        cn(
+          // Tabs read as an underline, never a boxed/pill control (DESIGN.md §5).
+          "relative -mb-px border-b-2 px-1 py-3 text-[1.0625rem] font-semibold transition-colors outline-none",
+          "focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          isActive
+            ? "border-primary text-foreground"
+            : "border-transparent text-muted-foreground hover:text-foreground",
+        )
+      }
+    >
+      {label}
+    </NavLink>
+  );
+}
+
+export default function App() {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <a
+        href="#contenu"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
+      >
+        Aller au contenu
+      </a>
+      <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="mx-auto max-w-6xl px-5 pt-6">
+          <p className="font-sans text-[0.8125rem] font-medium tracking-wide text-muted-foreground uppercase">
+            France · depuis 2000
+          </p>
+          <h1 className="mt-1 font-serif text-[2rem] leading-tight font-semibold tracking-[-0.01em] text-foreground">
+            Concentration du patrimoine
           </h1>
-          <nav className="mt-3 flex gap-4 text-sm">
+          <nav className="mt-4 flex gap-6 border-b border-border" aria-label="Sections">
             {TABS.map((t) => (
-              <button
-                type="button"
-                key={t.id}
-                onClick={() => setView(t.id)}
-                className={view === t.id ? "font-semibold text-blue-700" : "text-gray-500"}
-              >
-                {t.label}
-              </button>
+              <Tab key={t.to} {...t} />
             ))}
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        {view === "dashboard" && <Dashboard />}
-        {view === "comparison" && <Comparison />}
-        {view === "sources" && <SourcesMethodo />}
+      <main id="contenu" className="mx-auto max-w-6xl px-5 py-8">
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/comparison" element={<Comparison />} />
+          <Route path="/sources" element={<SourcesMethodo />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
       </main>
     </div>
   );

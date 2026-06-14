@@ -193,7 +193,8 @@ def resolve_series(
         [*params, millesime],
     ).fetchall()
     uv_row = con.execute(
-        f"SELECT unite_valeur FROM {relation} WHERE {where} AND millesime_source = ? LIMIT 1",
+        f"SELECT unite_valeur, max(date_extraction) FROM {relation} "
+        f"WHERE {where} AND millesime_source = ? GROUP BY unite_valeur LIMIT 1",
         [*params, millesime],
     ).fetchone()
 
@@ -205,6 +206,7 @@ def resolve_series(
         points=[Point(annee=int(a), valeur=float(v)) for a, v in point_rows],
         ruptures=ruptures,
         millesime_source=millesime,
+        date_extraction=str(uv_row[1]) if uv_row and uv_row[1] is not None else "",
     )
 
 
