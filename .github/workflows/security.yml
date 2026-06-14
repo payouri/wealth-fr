@@ -1,8 +1,12 @@
 # DevSecOps scanning, kept separate from the ci.yml correctness gates so a
 # newly-disclosed CVE surfaces on the weekly schedule, not just on code changes.
-#   - CodeQL  : SAST for the JS/TS frontend and the Python pipeline/backend
-#   - audit   : dependency advisories (pnpm + pip) — report-only until triaged
-#   - trivy   : OS/package CVEs in the built container images
+#   - CodeQL : SAST for the JS/TS frontend and the Python pipeline/backend
+#   - audit  : dependency advisories (pnpm + pip) -- report-only until triaged
+#   - trivy  : OS/package CVEs in the built container images
+#
+# Each scan runs only when files it cares about change (see the `changes` job);
+# the weekly schedule and manual dispatch always run everything, so the CVE
+# sweep is never filtered out.
 name: security
 
 on:
@@ -10,7 +14,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: "0 5 * * 1" # weekly, Monday 05:00 UTC — catch newly-disclosed CVEs
+    - cron: "0 5 * * 1" # weekly, Monday 05:00 UTC -- catch newly-disclosed CVEs
   workflow_dispatch: {}
 
 permissions:
@@ -21,33 +25,103 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  codeql:
-    name: CodeQL (${{ matrix.language }})
+  # Detect which areas changed so downstream scans can skip irrelevant runs.
+  # On schedule / manual dispatch the filter is skipped and every scan force-runs.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # paths-filter reads the PR file list via the API
+    outputs:
+      js: ${{ steps.filter.outputs.js }}
+      py: ${{ steps.filter.outputs.py }}
+      deps: ${{ steps.filter.outputs.deps }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        id: filter
+        with:
+          filters: |
+            js:
+              - 'frontend/**'
+              - '.github/workflows/security.yml'
+            py:
+              - 'backend/**'
+              - 'pipeline/**'
+              - '.github/workflows/security.yml'
+            deps:
+              - 'pnpm-lock.yaml'
+              - '**/package.json'
+              - '**/requirements*.txt'
+              - '**/requirements*.in'
+              - '.github/workflows/security.yml'
+            docker:
+              - '**/Dockerfile'
+              - 'docker-compose.yml'
+              - '.dockerignore'
+              - 'pnpm-lock.yaml'
+              - '**/package.json'
+              - '**/requirements*.txt'
+              - '**/requirements*.in'
+              - '.github/workflows/security.yml'
+
+  # CodeQL is split per language (rather than one matrix job) so each scan can be
+  # gated on its own paths -- the `matrix` context is not available in a job `if`.
+  codeql-js:
+    name: CodeQL (javascript-typescript)
+    needs: changes
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.js == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
       security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [javascript-typescript, python]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
         with:
-          languages: ${{ matrix.language }}
+          languages: javascript-typescript
       - uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:javascript-typescript"
+
+  codeql-py:
+    name: CodeQL (python)
+    needs: changes
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.py == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
+        with:
+          languages: python
+      - uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
+        with:
+          category: "/language:python"
 
   deps-audit:
-    name: Dependency audit (pnpm · pip)
+    name: Dependency audit (pnpm + pip)
+    needs: changes
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.deps == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Report-only for now: surfaces advisories in the log without blocking. Flip
     # to a real gate once the current backlog is triaged (known: shell-quote
-    # GHSA-w7jw-789q-3m8p, a dev-only transitive of concurrently — fix with a
+    # GHSA-w7jw-789q-3m8p, a dev-only transitive of concurrently -- fix with a
     # pnpm override to shell-quote >=1.8.4).
     continue-on-error: true
     steps:
@@ -70,6 +144,10 @@ jobs:
 
   container-scan:
     name: Trivy (${{ matrix.image }})
+    needs: changes
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.docker == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
