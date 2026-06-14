@@ -1,0 +1,10 @@
+# Direct dependencies for the backend image (human-edited source of truth).
+# Bump deliberately, then recompile the hashed lockfile:
+#   uv pip compile requirements.in --generate-hashes --python-version 3.12 -o requirements.txt
+# Keep pandas/pyarrow versions in sync with pipeline/requirements.in.
+fastapi==0.137.0
+uvicorn[standard]==0.49.0
+duckdb==1.5.3
+pydantic==2.13.4
+pandas==3.0.3
+pyarrow==24.0.0

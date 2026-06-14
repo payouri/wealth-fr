@@ -13,6 +13,7 @@ builder (`build_meta`), and the Series resolver (`resolve_series`). `/api/revisi
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 
 import duckdb
@@ -65,7 +66,16 @@ def _source_relation(con: duckdb.DuckDBPyConnection) -> str:
 
 
 def connect() -> duckdb.DuckDBPyConnection:
-    return duckdb.connect(database=":memory:")
+    # DuckDB writes its extension cache (`home_directory`) and any query spill
+    # (`temp_directory`) to disk, both defaulting to $HOME. The production image
+    # runs on a read-only rootfs where only the system temp dir is writable
+    # (tmpfs /tmp — see docker-compose.yml), so pin both there. `tempfile.gettempdir()`
+    # honours $TMPDIR and falls back to /tmp, so local dev is unaffected.
+    scratch = tempfile.gettempdir()
+    return duckdb.connect(
+        database=":memory:",
+        config={"home_directory": scratch, "temp_directory": scratch},
+    )
 
 
 def _distinct(con: duckdb.DuckDBPyConnection, relation: str, column: str) -> list[str]:

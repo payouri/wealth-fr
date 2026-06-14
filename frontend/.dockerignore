@@ -1,9 +1,5 @@
-node_modules/
-dist/
-.vite/
-*.local
-.git/
-.env
-.env.*
-*.pem
-*.key
+# NOT USED by the Docker build. The frontend image builds from the REPO ROOT
+# context (docker-compose.yml -> `frontend.build.context: .`), so Docker reads
+# the root /.dockerignore, not this file. Edit /.dockerignore to change what the
+# frontend build context excludes. This file is kept only as a signpost; adding
+# patterns here has no effect.

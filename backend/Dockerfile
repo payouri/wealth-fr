@@ -5,9 +5,12 @@ FROM python:3.12-slim@sha256:d764629ce0ddd8c71fd371e9901efb324a95789d2315a47db7e
 WORKDIR /app
 
 # duckdb / pyarrow / pandas ship manylinux wheels — no build toolchain needed.
+# requirements.txt is a fully-pinned, hash-locked lockfile (compiled from
+# requirements.in via `uv pip compile --generate-hashes`); --require-hashes
+# makes pip refuse to install anything not matching a recorded hash.
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
-  && pip install --no-cache-dir -r requirements.txt
+  && pip install --no-cache-dir --require-hashes -r requirements.txt
 
 COPY app ./app
 

@@ -1,7 +1,11 @@
-# The frontend image builds from the repo root (see docker-compose.yml). Keep the
-# build context lean: exclude everything the frontend build doesn't need. The
-# backend and pipeline images build from their own ./backend and ./pipeline
-# contexts and are unaffected by this file.
+# This is the FRONTEND image's ignore file: it builds from the repo root (see
+# docker-compose.yml `frontend.build.context: .`), so Docker reads THIS root
+# .dockerignore — never frontend/.dockerignore. The backend and pipeline images
+# build from their own ./backend and ./pipeline contexts with their own
+# .dockerignore files, and are unaffected by anything here.
+#
+# Keep the frontend build context lean: the frontend Dockerfile only COPYs the
+# root manifests/lockfile and frontend/, so everything else is excludable.
 **/node_modules/
 **/dist/
 **/.vite/
@@ -10,8 +14,13 @@
 .venv/
 backend/.venv/
 out/
-pipeline/out/
-pipeline/data/
+
+# Other images' source + repo data/docs — never needed by the frontend build.
+backend/
+pipeline/
+docs/
+*.md
+
 *.local
 .env
 .env.*

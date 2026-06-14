@@ -10,9 +10,12 @@ RUN useradd -u 1000 -m pipeline
 
 WORKDIR /pipeline
 
+# requirements.txt is a fully-pinned, hash-locked lockfile (compiled from
+# requirements.in via `uv pip compile --generate-hashes`); --require-hashes
+# makes pip refuse to install anything not matching a recorded hash.
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt
+ && pip install --no-cache-dir --require-hashes -r requirements.txt
 
 COPY . .
 
