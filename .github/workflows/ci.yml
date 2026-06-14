@@ -20,9 +20,10 @@ jobs:
   python:
     name: Python (ruff · mypy · pytest)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12" # matches pyproject target-version + Dockerfiles
           cache: pip
@@ -40,14 +41,15 @@ jobs:
   frontend:
     name: Frontend (biome · tsc · vitest)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Enable corepack (pins pnpm from package.json "packageManager")
         run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: .nvmrc # single source of truth (matches frontend Dockerfile)
           cache: pnpm
@@ -60,7 +62,8 @@ jobs:
   docker:
     name: Docker (compose build)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Build all images (validates the Dockerfiles, no push)
         run: docker compose build
