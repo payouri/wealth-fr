@@ -110,16 +110,22 @@ def fetch_wid(api_key_b64: str = WID_API_KEY_B64, areas="FR", codes=WID_FETCH_CO
             for _, cdata in (entry or {}).items():
                 for yv in (cdata or {}).get("values", []):
                     try:
+                        # L'API renvoie {"y": year, "v": value} ; on tolère aussi
+                        # l'ancien format [year, value] (réponses simulées).
+                        if isinstance(yv, dict):
+                            year, value = int(yv["y"]), float(yv["v"])
+                        else:
+                            year, value = int(yv[0]), float(yv[1])
                         rows.append(
                             {
                                 "code": code,
                                 "groupe": groupe,
                                 "indicateur": indicateur,
-                                "year": int(yv[0]),
-                                "value": float(yv[1]),
+                                "year": year,
+                                "value": value,
                             }
                         )
-                    except (TypeError, ValueError, IndexError):
+                    except (TypeError, ValueError, IndexError, KeyError):
                         continue
     return rows
 
@@ -151,8 +157,13 @@ def fetch_wid_available(
     var_q = ",".join(sixlets)
     url = f"{WID_API_BASE}countries-available-variables?countries={areas}&variables={var_q}"
     payload = _http_get(url, headers={"x-api-key": api_key_b64}, timeout=timeout).json()
-    if isinstance(payload, list) and len(payload) == 1:
-        payload = payload[0]
+    # L'API renvoie une LISTE de dicts (un par variable demandée) ; on les fusionne.
+    if isinstance(payload, list):
+        merged: dict = {}
+        for item in payload:
+            if isinstance(item, dict):
+                merged.update(item)
+        payload = merged
 
     codes = []
     for variable, per_country in (payload or {}).items():

@@ -69,6 +69,9 @@ except ImportError:
 
 DEFAULT_WID_PATH = Path("data/WID_data_FR.csv")
 DEFAULT_FISCAL_PATH = Path("data/dgfip_isf_ifi.csv")
+# Outputs land in out/ — the dir the backend serves (compose bind-mounts
+# pipeline/out -> /data, read-only). See docker-compose.yml and .env.example.
+DEFAULT_OUT_DIR = Path("out")
 OUTPUT_STEM = "dataset_concentration_patrimoine_fr"
 BASE_DEFLATION = 2021
 
@@ -355,8 +358,9 @@ def harmonize(*frames, annee_min: int) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def write_outputs(df: pd.DataFrame, stem: str, append: bool) -> None:
-    csv_path = Path(f"{stem}.csv")
+def write_outputs(df: pd.DataFrame, stem: str, append: bool, out_dir: Path) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = out_dir / f"{stem}.csv"
 
     if append and csv_path.exists():
         prev = pd.read_csv(csv_path)
@@ -392,7 +396,7 @@ def write_outputs(df: pd.DataFrame, stem: str, append: bool) -> None:
 
     # Snapshot Excel daté de CETTE extraction (data + sources + dico).
     ts = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    xlsx_path = Path(f"{stem}_{ts}.xlsx")
+    xlsx_path = out_dir / f"{stem}_{ts}.xlsx"
     sources = pd.DataFrame(
         [
             {
@@ -454,6 +458,12 @@ def main(argv=None) -> int:
     p.add_argument("--wid", type=Path, default=DEFAULT_WID_PATH)
     p.add_argument("--fiscal", type=Path, default=DEFAULT_FISCAL_PATH)
     p.add_argument("--annee-min", type=int, default=2000)
+    p.add_argument(
+        "--out-dir",
+        type=Path,
+        default=DEFAULT_OUT_DIR,
+        help="dossier de sortie (défaut: out/ — servi par le backend)",
+    )
     p.add_argument("--base-deflation", type=int, default=BASE_DEFLATION)
     p.add_argument("--millesime-wid", default=f"WID {dt.date.today():%Y}")
     p.add_argument("--millesime-insee", default="INSEE HVP 2020-21")
@@ -510,7 +520,7 @@ def main(argv=None) -> int:
         print("\n[!] Dataset vide : fournissez au moins une source.", file=sys.stderr)
         return 1
 
-    write_outputs(df, OUTPUT_STEM, append=not args.no_append)
+    write_outputs(df, OUTPUT_STEM, append=not args.no_append, out_dir=args.out_dir)
     print("\n=== Apercu de l'extraction ===")
     print(df.groupby(["source", "indicateur"]).size().to_string())
     return 0
