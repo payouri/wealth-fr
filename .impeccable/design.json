@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-14",
+  "title": "Design System: Concentration du patrimoine en France",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Slate-Teal Accent",
+        "canonical": "oklch(0.55 0.075 220)",
+        "tonalRamp": ["oklch(0.20 0.05 220)", "oklch(0.30 0.062 221)", "oklch(0.40 0.078 221)", "oklch(0.46 0.085 222)", "oklch(0.55 0.075 220)", "oklch(0.68 0.06 220)", "oklch(0.82 0.045 219)", "oklch(0.93 0.03 218)"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(0.26 0.015 72)",
+        "tonalRamp": ["oklch(0.20 0.012 74)", "oklch(0.26 0.015 72)", "oklch(0.38 0.014 74)", "oklch(0.52 0.013 74)", "oklch(0.68 0.011 78)", "oklch(0.80 0.010 80)", "oklch(0.89 0.009 80)", "oklch(0.985 0.006 85)"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "oklch(0.985 0.006 85)",
+        "tonalRamp": ["oklch(0.20 0.012 74)", "oklch(0.38 0.014 74)", "oklch(0.52 0.013 74)", "oklch(0.68 0.011 78)", "oklch(0.80 0.010 80)", "oklch(0.89 0.009 80)", "oklch(0.96 0.008 83)", "oklch(0.985 0.006 85)"]
+      },
+      "rupture": {
+        "role": "tertiary",
+        "displayName": "Rupture Amber",
+        "canonical": "oklch(0.66 0.09 75)",
+        "tonalRamp": ["oklch(0.30 0.05 70)", "oklch(0.40 0.07 72)", "oklch(0.50 0.085 73)", "oklch(0.58 0.09 74)", "oklch(0.66 0.09 75)", "oklch(0.76 0.08 76)", "oklch(0.86 0.06 78)", "oklch(0.94 0.035 80)"]
+      },
+      "series-wid": { "role": "data", "displayName": "WID (Okabe-Ito Blue)", "canonical": "#0072B2", "tonalRamp": ["#00314d", "#004870", "#005f93", "#0072B2", "#1b8ad0", "#56B4E9", "#9ed4f2", "#d6ecfa"] },
+      "series-insee": { "role": "data", "displayName": "INSEE (Okabe-Ito Vermillion)", "canonical": "#D55E00", "tonalRamp": ["#5c2900", "#823b00", "#a84c00", "#D55E00", "#f07212", "#f7964e", "#fbbd8e", "#fde0cd"] },
+      "series-dgfip": { "role": "data", "displayName": "DGFiP (Okabe-Ito Bluish Green)", "canonical": "#009E73", "tonalRamp": ["#00422f", "#006149", "#008060", "#009E73", "#12bd8e", "#56d4af", "#9ce6cf", "#d6f5ea"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page and view titles. Source Serif 4, one per screen." },
+      "headline": { "displayName": "Headline", "purpose": "Section headings and chart titles. Source Serif 4." },
+      "title": { "displayName": "Title", "purpose": "Figure headings, filter-group labels, table captions. Source Sans 3." },
+      "body": { "displayName": "Body", "purpose": "Explanatory prose. Source Sans 3, measure capped 65-75ch." },
+      "label": { "displayName": "Label", "purpose": "Filter labels, buttons, axis ticks, the traceability line. Source Sans 3, often muted ink." },
+      "data": { "displayName": "Data", "purpose": "Numerals in axes, tables, tooltips, inline figures. Source Sans 3 with tabular figures." }
+    },
+    "shadows": [
+      { "name": "overlay", "value": "0 8px 24px oklch(0.26 0.015 72 / 0.12)", "purpose": "Transient overlays only (dropdown, popover, chart tooltip). The only shadow in the system; never on resting surfaces." }
+    ],
+    "motion": [
+      { "name": "ease-out-quint", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Default easing for all state transitions. No bounce, no elastic." },
+      { "name": "duration-micro", "value": "150ms", "purpose": "Hover and focus feedback." },
+      { "name": "duration-base", "value": "200ms", "purpose": "State changes: filter toggles, tab switches." },
+      { "name": "duration-chart", "value": "220ms", "purpose": "Chart redraw on filter change. Disabled under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary actions only (apply filters, export). Slate-teal fill, rare on screen.",
+      "html": "<button class=\"ds-btn-primary\">Exporter le CSV</button>",
+      "css": ".ds-btn-primary { background: oklch(0.55 0.075 220); color: oklch(0.985 0.006 85); font-family: \"Source Sans 3\", system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.01em; padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; transition: background 200ms cubic-bezier(0.22,1,0.36,1); } .ds-btn-primary:hover { background: oklch(0.46 0.085 222); } .ds-btn-primary:active { background: oklch(0.40 0.078 221); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(0.55 0.075 220); outline-offset: 2px; } .ds-btn-primary:disabled { background: oklch(0.96 0.008 83); color: oklch(0.52 0.013 74); cursor: not-allowed; } @media (prefers-reduced-motion: reduce) { .ds-btn-primary { transition: none; } }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default for most actions. Panel fill with a hairline border.",
+      "html": "<button class=\"ds-btn-secondary\">Réinitialiser</button>",
+      "css": ".ds-btn-secondary { background: oklch(0.96 0.008 83); color: oklch(0.26 0.015 72); font-family: \"Source Sans 3\", system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.01em; padding: 10px 18px; border: 1px solid oklch(0.89 0.009 80); border-radius: 8px; cursor: pointer; transition: background 200ms cubic-bezier(0.22,1,0.36,1); } .ds-btn-secondary:hover { background: oklch(0.93 0.010 82); } .ds-btn-secondary:focus-visible { outline: 2px solid oklch(0.55 0.075 220); outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-btn-secondary { transition: none; } }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "filter-chip",
+      "description": "First-level filters (Convention: unité/concept, source toggles). Default and active state shown; active uses the slate-teal wash.",
+      "html": "<div style=\"display:flex; gap:8px;\"><button class=\"ds-chip\">menage</button><button class=\"ds-chip ds-chip--active\" aria-pressed=\"true\">adulte</button></div>",
+      "css": ".ds-chip { background: oklch(0.96 0.008 83); color: oklch(0.26 0.015 72); font-family: \"Source Sans 3\", system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.01em; padding: 6px 12px; border: 1px solid oklch(0.89 0.009 80); border-radius: 8px; cursor: pointer; transition: background 150ms cubic-bezier(0.22,1,0.36,1); } .ds-chip:hover { background: oklch(0.93 0.010 82); } .ds-chip:focus-visible { outline: 2px solid oklch(0.55 0.075 220); outline-offset: 2px; } .ds-chip--active { background: oklch(0.93 0.03 218); color: oklch(0.46 0.085 222); border-color: oklch(0.55 0.075 220); } @media (prefers-reduced-motion: reduce) { .ds-chip { transition: none; } }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text field. Paper fill, hairline stroke, accent ring on focus, no glow.",
+      "html": "<div class=\"ds-field\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"oklch(0.52 0.013 74)\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"></circle><line x1=\"21\" y1=\"21\" x2=\"16.65\" y2=\"16.65\"></line></svg><input class=\"ds-input\" type=\"text\" placeholder=\"Filtrer un indicateur\" /></div>",
+      "css": ".ds-field { display: inline-flex; align-items: center; gap: 8px; background: oklch(0.985 0.006 85); border: 1px solid oklch(0.89 0.009 80); border-radius: 8px; padding: 8px 12px; transition: border-color 150ms cubic-bezier(0.22,1,0.36,1); } .ds-field:focus-within { border-color: oklch(0.55 0.075 220); outline: 2px solid oklch(0.55 0.075 220); outline-offset: 1px; } .ds-input { border: none; background: transparent; outline: none; font-family: \"Source Sans 3\", system-ui, sans-serif; font-size: 1rem; color: oklch(0.26 0.015 72); } .ds-input::placeholder { color: oklch(0.52 0.013 74); } @media (prefers-reduced-motion: reduce) { .ds-field { transition: none; } }"
+    },
+    {
+      "name": "Tab Navigation",
+      "kind": "nav",
+      "refersTo": "tab-active",
+      "description": "Top-level views. Text tabs, muted ink inactive, ink with a slate-teal underline when active. No pills, no boxes.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab ds-tab--active\" aria-current=\"page\">Tableau de bord</a><a class=\"ds-tab\">Comparaison de sources</a><a class=\"ds-tab\">Sources &amp; méthodologie</a></nav>",
+      "css": ".ds-tabs { display: flex; gap: 24px; border-bottom: 1px solid oklch(0.89 0.009 80); } .ds-tab { font-family: \"Source Sans 3\", system-ui, sans-serif; font-size: 1.125rem; font-weight: 600; line-height: 1.3; color: oklch(0.52 0.013 74); padding: 8px 0; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; text-decoration: none; transition: color 150ms cubic-bezier(0.22,1,0.36,1); } .ds-tab:hover { color: oklch(0.26 0.015 72); } .ds-tab--active { color: oklch(0.26 0.015 72); border-bottom-color: oklch(0.55 0.075 220); } .ds-tab:focus-visible { outline: 2px solid oklch(0.55 0.075 220); outline-offset: 2px; } @media (prefers-reduced-motion: reduce) { .ds-tab { transition: none; } }"
+    },
+    {
+      "name": "Series Legend Line",
+      "kind": "custom",
+      "refersTo": "series-wid",
+      "description": "Signature pattern. Each plotted series is identified by an Okabe-Ito swatch, the source name, and its Convention (unité/concept). Conventions differing means dash patterns differing, so overlaid sources never read as merged.",
+      "html": "<ul class=\"ds-legend\"><li class=\"ds-legend__item\"><svg width=\"28\" height=\"10\" aria-hidden=\"true\"><line x1=\"0\" y1=\"5\" x2=\"28\" y2=\"5\" stroke=\"#0072B2\" stroke-width=\"2\"></line></svg><span class=\"ds-legend__name\">WID</span><span class=\"ds-legend__conv\">adulte / net</span></li><li class=\"ds-legend__item\"><svg width=\"28\" height=\"10\" aria-hidden=\"true\"><line x1=\"0\" y1=\"5\" x2=\"28\" y2=\"5\" stroke=\"#D55E00\" stroke-width=\"2\" stroke-dasharray=\"6 4\"></line></svg><span class=\"ds-legend__name\">INSEE</span><span class=\"ds-legend__conv\">menage / brut</span></li></ul>",
+      "css": ".ds-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; } .ds-legend__item { display: flex; align-items: center; gap: 8px; font-family: \"Source Sans 3\", system-ui, sans-serif; } .ds-legend__name { font-size: 0.875rem; font-weight: 600; color: oklch(0.26 0.015 72); } .ds-legend__conv { font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.01em; color: oklch(0.52 0.013 74); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Reading Room",
+    "overview": "A calm, well-lit public reading room where anyone can come and read the record, and trust it. The interface is the quiet room; the data is what's on the table. On a politically charged subject, neutrality is conveyed by restraint: the chrome recedes, the figures and their provenance carry the page. This is data journalism in the lineage of Our World in Data, an explainer with the rigor of a statistical instrument underneath. It is not a dashboard and it is not an op-ed.",
+    "keyCharacteristics": [
+      "Warm-paper surface (oklch(0.985 0.006 85)); neutral ink; chrome that recedes.",
+      "One muted slate-teal accent (oklch(0.55 0.075 220)), <=10% of any screen, for interaction only.",
+      "Saturated color reserved for plotted data; colorblind-safe series plus non-hue cues.",
+      "Source Serif 4 display over Source Sans 3 body; tabular figures for all data.",
+      "Flat by default; motion is responsive feedback (150-220ms), never choreography."
+    ],
+    "rules": [
+      { "name": "The Quiet Chrome Rule", "body": "Color belongs to the data. The interface chrome stays near-neutral; the only chromatic UI element is the slate-teal accent, and it appears on <=10% of any screen. If the shell competes with the chart for attention, the shell is too loud.", "section": "colors" },
+      { "name": "The Impartial Hue Rule", "body": "No politically-coded color carries meaning in the UI. The primary accent is never red or partisan blue; series colors encode source identity, never a value judgment. Hue is information, never editorial.", "section": "colors" },
+      { "name": "The Tabular Figures Rule", "body": "Every numeral in a data context (axes, tables, tooltips, inline figures) uses tabular figures (font-feature-settings: \"tnum\" 1) so columns align and values don't jitter as they update. Proportional figures are for prose only.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. Shadow appears only as a transient response to state. If a resting element needs a shadow to be understood, fix the layout before reaching for elevation.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep chrome near-neutral and spend saturated color only on plotted data (The Quiet Chrome Rule).",
+      "Do label every plotted line with its Convention (unité/concept) and reinforce series with non-hue cues (direct labels, dash patterns), so meaning survives colorblindness and grayscale.",
+      "Do keep source, millesime_source, and date_extraction visible for every displayed figure. Traceability is a feature, not a footnote.",
+      "Do annotate the 2018 ISF->IFI rupture and millésime révisions calmly with the muted-amber marker. Explain the break; don't smooth it.",
+      "Do use tabular figures for all numeric data, fixed-rem type sizes, and a body measure capped at 65-75ch.",
+      "Do keep surfaces flat and warm; tint every neutral and never use #000 or #fff."
+    ],
+    "donts": [
+      "Don't build a generic SaaS dashboard: no KPI hero-metric cards, no gradient accents, no identical icon-heading-text card grids, no analytics-template chrome.",
+      "Don't go crypto / fintech dark-neon: no dark-mode-by-default, no neon-on-black, no glowing charts.",
+      "Don't settle for government-portal drab: no flat, cramped, low-contrast administrative look. Civic credibility comes from craft, not dullness.",
+      "Don't make a flashy infographic: no decorative or animation-heavy charts that bend the data for effect.",
+      "Don't make a red or partisan-blue color carry meaning in the UI, and don't use alarm-red (#dc2626) for the 2018 rupture; it's a methodological seam, not a warning (The Impartial Hue Rule).",
+      "Don't encode anything by color alone, and don't merge series from different Conventions into one quantity. Overlay with explicit labels only."
+    ]
+  }
+}
