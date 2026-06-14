@@ -1,6 +1,130 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/source-sans-3";
+@import "@fontsource-variable/source-serif-4";
 
-/* Tailwind v4 CSS-first config. Add design tokens here, e.g.:
-@theme {
-  --color-rupture: #dc2626;
-} */
+/* Dark mode is class-based and intentionally unused: this is a light-only
+   product (DESIGN.md anti-reference: crypto/fintech dark-neon). The variant is
+   kept so `dark:` utilities still compile, but no `.dark` block is defined, so
+   OS dark mode never flips the UI. */
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* Source Serif 4 carries display/headlines; Source Sans 3 carries everything
+     else (body, UI, data). See DESIGN.md §3. */
+  --font-sans: "Source Sans 3 Variable", system-ui, sans-serif;
+  --font-heading: "Source Serif 4 Variable", Georgia, serif;
+  --font-serif: "Source Serif 4 Variable", Georgia, serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* 2018 ISF→IFI rupture / annotation marker. Calm amber, never alarm-red.
+     Usable as text-rupture / stroke-rupture / bg-rupture. */
+  --color-rupture: var(--rupture);
+
+  /* Series palette: colorblind-safe Okabe-Ito. chart-1..3 are the three
+     sources; always pair with a non-hue cue (label, dash). DESIGN.md §2. */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --radius: 0.5rem; /* 8px = DESIGN.md rounded.md */
+
+  /* Warm paper surface, neutral ink. Never #fff / #000. DESIGN.md §2. */
+  --background: oklch(0.985 0.006 85);
+  --foreground: oklch(0.26 0.015 72);
+  --card: oklch(0.985 0.006 85);
+  --card-foreground: oklch(0.26 0.015 72);
+  --popover: oklch(0.985 0.006 85);
+  --popover-foreground: oklch(0.26 0.015 72);
+
+  /* Slate-teal accent: the single interactive hue (links, primary action,
+     selection, focus). Trustworthy, not partisan red/blue. The Impartial Hue Rule. */
+  --primary: oklch(0.55 0.075 220);
+  --primary-foreground: oklch(0.985 0.006 85);
+
+  /* Panel: the second neutral layer (toolbars, filter bar, table headers). */
+  --secondary: oklch(0.96 0.008 83);
+  --secondary-foreground: oklch(0.26 0.015 72);
+  --muted: oklch(0.96 0.008 83);
+  --muted-foreground: oklch(0.52 0.013 74);
+
+  /* shadcn "accent" = subtle hover/active background → slate-teal wash. */
+  --accent: oklch(0.93 0.03 218);
+  --accent-foreground: oklch(0.46 0.085 222);
+
+  /* Reserved for genuine destructive actions only, not data or the rupture. */
+  --destructive: oklch(0.577 0.245 27.325);
+
+  --border: oklch(0.89 0.009 80); /* hairline */
+  --input: oklch(0.89 0.009 80);
+  --ring: oklch(0.55 0.075 220);
+
+  --rupture: oklch(0.66 0.09 75);
+
+  --chart-1: #0072b2; /* WID — Okabe-Ito blue */
+  --chart-2: #d55e00; /* INSEE — Okabe-Ito vermillion */
+  --chart-3: #009e73; /* DGFiP — Okabe-Ito bluish green */
+  --chart-4: #cc79a7; /* Okabe-Ito reddish purple */
+  --chart-5: #e69f00; /* Okabe-Ito orange */
+
+  --sidebar: oklch(0.96 0.008 83);
+  --sidebar-foreground: oklch(0.26 0.015 72);
+  --sidebar-primary: oklch(0.55 0.075 220);
+  --sidebar-primary-foreground: oklch(0.985 0.006 85);
+  --sidebar-accent: oklch(0.93 0.03 218);
+  --sidebar-accent-foreground: oklch(0.46 0.085 222);
+  --sidebar-border: oklch(0.89 0.009 80);
+  --sidebar-ring: oklch(0.55 0.075 220);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
