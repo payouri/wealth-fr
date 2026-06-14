@@ -16,6 +16,18 @@ services:
     expose:
       - "8000"
     restart: unless-stopped
+    # duckdb/pandas/pyarrow over the full dataset can spike; bound it.
+    mem_limit: 2g
+    # Hardening: drop all caps, block privilege escalation, run a read-only
+    # rootfs. The app only reads /data (RO) and needs a writable /tmp for any
+    # duckdb spill files.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
   frontend:
     build: ./frontend
@@ -26,6 +38,16 @@ services:
       # Bind to loopback only; rootless nginx serves on :8080 inside the container.
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
+    # Hardening: read-only rootfs; nginx-unprivileged writes its pid and temp
+    # files under /tmp and caches under /var/cache/nginx, so back those with tmpfs.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
   # On-demand dataset generation. Run explicitly with the `data` profile; never
   # started by a bare `docker compose up`. Writes into the same host pipeline/out
@@ -40,6 +62,10 @@ services:
     user: "${UID:-1000}:${GID:-1000}"
     # Bound memory: pandas/pyarrow over the full dataset can spike.
     mem_limit: 2g
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     env_file:
       - path: .env
         required: false
