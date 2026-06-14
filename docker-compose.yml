@@ -41,6 +41,8 @@ services:
     # Bind to loopback only; rootless nginx serves on :8080 inside the container.
     # ports:
     #   - "127.0.0.1:8080:8080"
+    expose:
+      - 8080
     restart: unless-stopped
     # Hardening: read-only rootfs; nginx-unprivileged writes its pid and temp
     # files under /tmp and caches under /var/cache/nginx, so back those with tmpfs.
