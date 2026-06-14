@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Data outputs (keep dirs via .gitkeep; ignore generated artifacts)
+pipeline/out/*.csv
+pipeline/out/*.xlsx
+pipeline/out/*.parquet
+pipeline/data/*.csv
+pipeline/data/*.xlsx
+!pipeline/**/.gitkeep
+
+# Node / frontend
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+*.local
+.pnpm-store
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/

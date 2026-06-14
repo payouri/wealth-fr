@@ -1,0 +1,11 @@
+out/
+data/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.git/
+.env
+.env.*
+*.pem
+*.key

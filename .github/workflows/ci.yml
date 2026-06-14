@@ -1,0 +1,66 @@
+# Continuous integration — runs the same gates documented in AGENTS.md so a green
+# CI run == a passing local Definition of Done. No secrets required (the live
+# WID/DGFiP integration is jalon 3; see HANDOFF.md §10).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python (ruff · mypy · pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12" # matches pyproject target-version + Dockerfiles
+          cache: pip
+      - name: Install deps (runtime + dev tooling)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r pipeline/requirements.txt -r backend/requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+      - name: pytest (backend contract)
+        working-directory: backend
+        run: python -m pytest -q
+
+  frontend:
+    name: Frontend (biome · tsc · vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable corepack (pins pnpm from package.json "packageManager")
+        run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc # single source of truth (matches frontend Dockerfile)
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint # biome check .
+      - run: pnpm typecheck # tsc -b --noEmit
+      - run: pnpm test # vitest run
+
+  docker:
+    name: Docker (compose build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build all images (validates the Dockerfiles, no push)
+        run: docker compose build

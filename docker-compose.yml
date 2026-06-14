@@ -1,0 +1,49 @@
+# Production-style stack: nginx serves the built frontend and reverse-proxies
+# /api to the backend (single entry on host :8080). The data pipeline is NOT on
+# the `up` path — see docs/adr/0001-pipeline-off-compose-startup-path.md.
+#
+#   docker compose up --build                       # serve the app
+#   docker compose --profile data run --rm pipeline # (re)generate the dataset
+services:
+  backend:
+    build: ./backend
+    environment:
+      DATASET_PARQUET: /data/dataset_concentration_patrimoine_fr.parquet
+      DATASET_CSV: /data/dataset_concentration_patrimoine_fr.csv
+    volumes:
+      # Serve whatever the pipeline produced on the host; read-only.
+      - ./pipeline/out:/data:ro
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      # Bind to loopback only; rootless nginx serves on :8080 inside the container.
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+
+  # On-demand dataset generation. Run explicitly with the `data` profile; never
+  # started by a bare `docker compose up`. Writes into the same host pipeline/out
+  # the backend serves. Override args, e.g.:
+  #   docker compose --profile data run --rm pipeline --download --full
+  pipeline:
+    build: ./pipeline
+    profiles: ["data"]
+    # Run as the host user so files written to the bind mounts below aren't
+    # root-owned on the host. Invoke with:
+    #   UID=$(id -u) GID=$(id -g) docker compose --profile data run --rm pipeline
+    user: "${UID:-1000}:${GID:-1000}"
+    # Bound memory: pandas/pyarrow over the full dataset can spike.
+    mem_limit: 2g
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./pipeline/out:/pipeline/out
+      - ./pipeline/data:/pipeline/data
+    command: ["--annee-min", "2000"]

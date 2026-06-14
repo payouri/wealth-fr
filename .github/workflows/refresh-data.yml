@@ -1,0 +1,26 @@
+# Scheduled data refresh (HANDOFF.md §9 jalon 7).
+# STUB: runs the pipeline in --download --full mode and commits a new millésime.
+# The pipeline prints detected revisions to stdout (see build_dataset.write_outputs).
+name: refresh-data
+
+on:
+  schedule:
+    - cron: "0 4 1 * *" # monthly, 04:00 UTC on the 1st
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r pipeline/requirements.txt
+      - name: Build dataset (download latest millésime)
+        env:
+          WID_API_KEY_B64: ${{ secrets.WID_API_KEY_B64 }}
+          DGFIP_IFI_XLS_URL: ${{ secrets.DGFIP_IFI_XLS_URL }}
+        working-directory: pipeline
+        run: python build_dataset.py --download --full
+      # TODO: commit/publish the new millésime; surface revisions in the run summary.

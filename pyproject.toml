@@ -1,0 +1,33 @@
+# Repo-wide Python tooling for the pipeline/ and backend/ packages.
+# Deps live in each package's requirements.txt; dev tools in requirements-dev.txt.
+# Target 3.12 to match CI (.github/workflows) and the handoff, not the local runtime.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["pipeline", "backend"]
+
+[tool.ruff.lint]
+# Pyflakes (F), pycodestyle (E/W), import sorting (I), pyupgrade (UP),
+# flake8-bugbear (B), flake8-simplify (SIM).
+select = ["E", "W", "F", "I", "UP", "B", "SIM"]
+# Line length is owned by `ruff format`, which intentionally leaves
+# un-splittable lines (e.g. the aligned curated data tuples in build_dataset.py) long.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use fixtures/asserts freely; stubs raise NotImplementedError.
+"backend/tests/*" = ["B"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["pipeline", "backend"]
+# Third-party libs (duckdb, pandas, openpyxl) ship without type stubs.
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]

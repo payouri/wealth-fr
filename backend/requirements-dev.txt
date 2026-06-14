@@ -1,0 +1,7 @@
+# Test/CI-only dependencies. Not installed into the production image.
+# ruff + mypy are repo-wide: they also lint/type-check pipeline/ (see pyproject.toml).
+-r requirements.txt
+pytest
+httpx
+ruff
+mypy
