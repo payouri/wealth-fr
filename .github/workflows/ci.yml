@@ -47,11 +47,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Enable corepack (pins pnpm from package.json "packageManager")
         run: corepack enable
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc # single source of truth (matches frontend Dockerfile)
           cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml # workspace root lockfile (single source of truth)
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint # biome check .
       - run: pnpm typecheck # tsc -b --noEmit
