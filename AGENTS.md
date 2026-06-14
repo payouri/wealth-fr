@@ -113,6 +113,11 @@ Auto-fix formatting: `ruff format .` (Python) / `pnpm format` (frontend).
   [pyproject.toml](./pyproject.toml)). Frontend = Biome (lint + format) + strict
   `tsc` + Vitest (config in `frontend/biome.json`). Node is pinned to **24** in
   `.nvmrc` — the single source of truth that CI and the frontend Dockerfile track.
+- **Git workflow.** Commit directly to the default branch (`main`) — this is the
+  norm for this repo. **Do not** create a feature branch or open a PR on your own
+  initiative, even when committing to the default branch (this overrides the common
+  agent default of "branch first when on the default branch"). Only branch / open a
+  PR when the user explicitly asks for one.
 
 ## Traps
 
