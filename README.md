@@ -1,4 +1,4 @@
-# eco_stats_viewer — Concentration du patrimoine en France depuis 2000
+# wealth-fr — Concentration du patrimoine en France depuis 2000
 
 Explore, visualize and compare harmonized wealth-concentration series for France
 (top shares, Gini, average wealth) across three public sources — **WID**, **INSEE**,
@@ -14,7 +14,7 @@ interchangeable**. See [HANDOFF.md](./HANDOFF.md) for the full product brief and
 ## Layout
 
 ```
-eco_stats_viewer/
+wealth-fr/
 ├── package.json     # root dev runner: `pnpm bootstrap`, `pnpm dev` (concurrently)
 ├── docker-compose.yml   # prod-style stack: nginx + backend (+ data-profile pipeline)
 ├── pipeline/        # Python data pipeline (existing, working)

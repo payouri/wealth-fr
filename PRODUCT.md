@@ -21,7 +21,7 @@ what, and let me see where the number comes from."
 
 ## Product Purpose
 
-eco_stats_viewer explores, visualizes, and compares harmonized wealth-concentration
+wealth-fr explores, visualizes, and compares harmonized wealth-concentration
 series for France (top 10 / 1 / 0.1% shares, Gini, average wealth) drawn from three
 public sources whose measurement **Conventions are deliberately not interchangeable**
 (WID, INSEE, DGFiP).

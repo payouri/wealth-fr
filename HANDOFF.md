@@ -302,7 +302,7 @@ python build_dataset.py --annee-min 2000
 This handoff describes the initial intent. The scaffold that was built diverges on
 a few points decided with the user (see `README.md` and `CONTEXT.md`):
 
-- **Repo root**: `eco_stats_viewer` (not `wealth-fr`).
+- **Repo root**: `wealth-fr` (not `wealth-fr`).
 - **Frontend**: pnpm · React · TypeScript · Tailwind v4 · Vite 8 · **Recharts** (not visx) · TanStack Query.
 - **Backend**: FastAPI + **DuckDB** (reads the Parquet, falls back to CSV).
 - **Quick start**: the scripts now live in `pipeline/`; run from that folder (see `README.md`).
