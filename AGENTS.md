@@ -20,6 +20,31 @@ stubs with `TODO(jalon N)` markers.
 | [CONTEXT.md](./CONTEXT.md) | Domain glossary (Observation, Convention, Révision, Rupture ISF→IFI…) | Any time a domain term's meaning matters |
 | [README.md](./README.md) | Human-facing overview + quick start | Onboarding context |
 | [docs/adr/](./docs/adr/) | Architecture decisions and *why* | Before reversing a structural choice |
+| [PRODUCT.md](./PRODUCT.md) | Design context: register, users, brand personality, anti-references, design principles | Building or changing any UI |
+| [DESIGN.md](./DESIGN.md) | Visual system: color, typography, components (seed until real tokens land) | Styling any frontend surface |
+
+### Design Context
+
+This is a **product**-register surface for the **informed general public**, with an
+**editorial / explanatory** personality (data journalism, not a dashboard). Five
+principles guide all UI work (full text in [PRODUCT.md](./PRODUCT.md)):
+
+1. **The Convention is the contract** — overlay series, never merge; every line declares its unité/concept.
+2. **Traceability is a feature, not a footnote** — source, millésime, extraction date visible per figure.
+3. **Explain the break, don't smooth it** — annotate the 2018 ISF→IFI rupture and révisions.
+4. **Lead the reader, respect the data** — progressive disclosure; accessible never means dumbed down.
+5. **Honest charts only** — no axis tricks, no decoration over integrity, no color-only meaning.
+
+Accessibility target: **WCAG 2.1 AA + colorblind-safe** (never color-only encoding; respect reduced-motion).
+
+**Component sourcing: shadcn/ui first.** Prefer installing a **shadcn/ui** primitive
+and restyling it to the DESIGN.md tokens before hand-rolling a custom one. It fits the
+stack (React 19 + Tailwind v4 + Radix) and supplies accessible, state-complete
+components that serve the WCAG AA goal. Hand-roll only when no shadcn equivalent
+exists or restyling costs more than building from scratch (chart surface, Convention
+legend, traceability line are custom by nature). Never ship a shadcn component in its
+default skin: bend it to the tokens (warm paper, slate-teal accent, 8px radius, no
+pills, tabs as an underline). See [DESIGN.md](./DESIGN.md) "The Borrowed Primitive Rule".
 
 ## Non-negotiables
 
@@ -127,3 +152,25 @@ CI ([.github/workflows/ci.yml](./.github/workflows/ci.yml)) runs exactly these
 gates plus `docker compose build` on every push/PR — a green CI run is the same
 bar as a passing local DoD. When you un-skip a contract test (the
 `@pytest.mark.skip` markers tied to jalons), do it as the matching endpoint lands.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live as GitHub issues in `payouri/wealth-fr` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical triage roles use their default names, plus an `epic` grouping label. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Frontend design
+
+All frontend design work goes through the `impeccable` skill (`/impeccable <command>`),
+which reads [PRODUCT.md](./PRODUCT.md) (strategy: register, users, principles) and
+[DESIGN.md](./DESIGN.md) (visual system: tokens, type, components) before touching any
+UI. Use `/impeccable craft <view>` to build a surface, `critique` / `audit` to review
+one. The design tokens are normative; honour the "Design Context" block above.
