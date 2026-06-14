@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { ApiError, api } from "@/api/client";
 import type { ConventionChoice, Series } from "@/api/types";
 import FilterBar from "@/components/FilterBar";
@@ -11,8 +11,13 @@ import {
   FigureSkeleton,
   Traceability,
 } from "@/components/figure";
-import SeriesChart, { type ChartSeries } from "@/components/SeriesChart";
+import type { ChartSeries } from "@/components/SeriesChart";
 import { useDashboardParams } from "@/hooks/useDashboardParams";
+
+// Recharts is heavy; load the chart surface in its own chunk so the shell,
+// router and filter bar paint without it (the skeleton covers the gap).
+const SeriesChart = lazy(() => import("@/components/SeriesChart"));
+
 import {
   GROUPE_ENCODING,
   groupeLabel,
@@ -99,15 +104,17 @@ function ChartFigure({
       };
     });
     body = (
-      <SeriesChart
-        series={chartSeries}
-        ruptures={representative?.ruptures ?? []}
-        uniteValeur={representative?.unite_valeur ?? ""}
-        axisLabel={axisLabel}
-        anneeMin={anneeMin}
-        anneeMax={anneeMax}
-        height={height}
-      />
+      <Suspense fallback={<FigureSkeleton height={height} />}>
+        <SeriesChart
+          series={chartSeries}
+          ruptures={representative?.ruptures ?? []}
+          uniteValeur={representative?.unite_valeur ?? ""}
+          axisLabel={axisLabel}
+          anneeMin={anneeMin}
+          anneeMax={anneeMax}
+          height={height}
+        />
+      </Suspense>
     );
   }
 

@@ -108,7 +108,7 @@ export default function FilterBar({
               value={params.indicateur}
               onValueChange={(v) => update({ indicateur: v, groupe: "" })}
             >
-              <SelectTrigger id="f-indicateur" className="w-52" aria-label="Indicateur">
+              <SelectTrigger className="w-52" aria-labelledby="f-indicateur">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -145,7 +145,7 @@ export default function FilterBar({
                 value={params.groupe || meta.groupes[0]}
                 onValueChange={(v) => update({ groupe: v })}
               >
-                <SelectTrigger id="f-groupe" className="w-48" aria-label="Groupe">
+                <SelectTrigger className="w-48" aria-labelledby="f-groupe">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -163,7 +163,7 @@ export default function FilterBar({
           {conceptChoices && conceptChoices.length > 1 ? (
             <Field label="Convention" htmlFor="f-concept">
               <Select value={params.concept} onValueChange={(v) => update({ concept: v })}>
-                <SelectTrigger id="f-concept" className="w-44" aria-label="Convention">
+                <SelectTrigger className="w-44" aria-labelledby="f-concept">
                   <SelectValue placeholder="à choisir" />
                 </SelectTrigger>
                 <SelectContent>

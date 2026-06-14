@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   CartesianGrid,
   Line,
@@ -86,9 +87,15 @@ export default function SeriesChart({
   });
 
   const tnum = { fontFeatureSettings: '"tnum" 1' } as const;
-  const ink = resolveColor("var(--color-muted-foreground)");
-  const hairline = resolveColor("var(--color-border)");
-  const ruptureColor = resolveColor("var(--color-rupture)");
+  // Chrome tokens are static (light-only product) — resolve once, not per render.
+  const { ink, hairline, ruptureColor } = useMemo(
+    () => ({
+      ink: resolveColor("var(--color-muted-foreground)"),
+      hairline: resolveColor("var(--color-border)"),
+      ruptureColor: resolveColor("var(--color-rupture)"),
+    }),
+    [],
+  );
 
   return (
     <ResponsiveContainer width="100%" height={height}>

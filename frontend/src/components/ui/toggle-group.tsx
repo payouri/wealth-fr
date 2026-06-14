@@ -24,7 +24,9 @@ export function ToggleGroupItem({
   return (
     <ToggleGroupPrimitive.Item
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-sm font-medium text-foreground",
+        // Lift the tap target to 44px on touch devices (WCAG 2.5.5) without
+        // changing the tighter resting height on pointer-fine screens.
+        "inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-sm font-medium text-foreground pointer-coarse:min-h-11",
         "transition-colors outline-none hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]",
         "focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
         "data-[state=on]:border-[color-mix(in_oklch,var(--primary),transparent_60%)] data-[state=on]:bg-accent data-[state=on]:text-accent-foreground",

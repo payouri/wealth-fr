@@ -39,7 +39,7 @@ export default function App() {
       >
         Aller au contenu
       </a>
-      <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <header className="border-b border-border bg-background">
         <div className="mx-auto max-w-6xl px-5 pt-6">
           <p className="font-sans text-[0.8125rem] font-medium tracking-wide text-muted-foreground uppercase">
             France · depuis 2000
