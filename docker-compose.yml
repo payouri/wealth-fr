@@ -39,7 +39,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - 8080:8080
+      - "127.0.0.1:8080:8080"
     # Bind to loopback only; rootless nginx serves on :8080 inside the container.
     # ports:
     # - "127.0.0.1:8080:8080"
