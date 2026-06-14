@@ -1,0 +1,19 @@
+# The frontend image builds from the repo root (see docker-compose.yml). Keep the
+# build context lean: exclude everything the frontend build doesn't need. The
+# backend and pipeline images build from their own ./backend and ./pipeline
+# contexts and are unaffected by this file.
+**/node_modules/
+**/dist/
+**/.vite/
+.git/
+.github/
+.venv/
+backend/.venv/
+out/
+pipeline/out/
+pipeline/data/
+*.local
+.env
+.env.*
+*.pem
+*.key

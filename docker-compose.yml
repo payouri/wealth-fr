@@ -30,7 +30,11 @@ services:
       - no-new-privileges:true
 
   frontend:
-    build: ./frontend
+    # Context is the repo root so the build sees the workspace's single root
+    # pnpm-lock.yaml (the Dockerfile copies only what it needs). See frontend/Dockerfile.
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
     depends_on:
       backend:
         condition: service_healthy
