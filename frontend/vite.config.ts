@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -5,6 +6,11 @@ import { defineConfig } from "vite";
 // Tailwind v4 is wired as a Vite plugin (no tailwind.config.js / postcss).
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   server: {
     port: 5173,
     proxy: {
