@@ -83,7 +83,8 @@ backend; single host entry on `127.0.0.1:8080`):
 
 ```bash
 docker compose up --build                          # serve the app
-docker compose --profile data run --rm pipeline --download --full   # (re)generate the dataset
+# UID/GID keep pipeline-written files owned by you, not root (see docker-compose.yml).
+UID=$(id -u) GID=$(id -g) docker compose --profile data run --rm pipeline --download --full   # (re)generate the dataset
 ```
 
 > The pipeline is **not** on the `docker compose up` path by design — it is an

@@ -64,6 +64,10 @@ services:
     # root-owned on the host. Invoke with:
     #   UID=$(id -u) GID=$(id -g) docker compose --profile data run --rm pipeline
     user: "${UID:-1000}:${GID:-1000}"
+    # Run via docker-init (tini) as PID 1 so Ctrl-C/SIGTERM is forwarded to the
+    # Python process and a long --download run aborts cleanly instead of being
+    # SIGKILLed, and any child is reaped.
+    init: true
     # Bound memory: pandas/pyarrow over the full dataset can spike.
     mem_limit: 2g
     cap_drop:

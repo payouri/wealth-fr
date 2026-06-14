@@ -58,8 +58,9 @@ The backend serves whatever harmonized dataset exists in `pipeline/out/`
 `up`** — generate the dataset on demand with the `data` profile:
 
 ```bash
-docker compose --profile data run --rm pipeline                     # default: --annee-min 2000
-docker compose --profile data run --rm pipeline --download --full   # needs secrets in .env
+# UID/GID keep pipeline-written files owned by you, not root (see docker-compose.yml).
+UID=$(id -u) GID=$(id -g) docker compose --profile data run --rm pipeline                     # default: --annee-min 2000
+UID=$(id -u) GID=$(id -g) docker compose --profile data run --rm pipeline --download --full   # needs secrets in .env
 ```
 
 Why the pipeline is off the startup path: see
