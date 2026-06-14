@@ -12,6 +12,8 @@ pipeline/out/*.parquet
 pipeline/data/*.csv
 pipeline/data/*.xlsx
 !pipeline/**/.gitkeep
+# Stray output dir if the pipeline is run from the repo root (default --out-dir out/)
+/out/
 
 # Node / frontend
 node_modules/
