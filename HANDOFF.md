@@ -34,17 +34,17 @@ Excel (snapshot).
 
 Key functions:
 
-| Function | Role |
-|---|---|
-| `load_wid(path, …)` | Reads a local WID file (`WID_data_FR.csv`, `;` separator) → tidy |
-| `_wid_rows_to_tidy(rows, …)` | Converts raw WID API rows → tidy |
-| `load_insee(…)` | Pre-filled (curated) official INSEE points → tidy |
-| `load_dgfip(path, …)` | ISF/IFI: external CSV if present, otherwise pre-filled points → tidy |
-| `_stamp(rows, date, millesime)` | Adds the historisation fields |
-| `deflate_levels(df, base_year)` | Converts levels (€) to constant euros (alters neither % nor Gini) |
-| `harmonize(*frames, annee_min)` | Stacks the sources, filters the period, orders, validates the schema |
-| `write_outputs(df, stem, append)` | Writes cumulative CSV + dated Excel, **detects revisions** |
-| `main(argv)` | CLI |
+| Function                          | Role                                                                 |
+| --------------------------------- | -------------------------------------------------------------------- |
+| `load_wid(path, …)`               | Reads a local WID file (`WID_data_FR.csv`, `;` separator) → tidy     |
+| `_wid_rows_to_tidy(rows, …)`      | Converts raw WID API rows → tidy                                     |
+| `load_insee(…)`                   | Pre-filled (curated) official INSEE points → tidy                    |
+| `load_dgfip(path, …)`             | ISF/IFI: external CSV if present, otherwise pre-filled points → tidy |
+| `_stamp(rows, date, millesime)`   | Adds the historisation fields                                        |
+| `deflate_levels(df, base_year)`   | Converts levels (€) to constant euros (alters neither % nor Gini)    |
+| `harmonize(*frames, annee_min)`   | Stacks the sources, filters the period, orders, validates the schema |
+| `write_outputs(df, stem, append)` | Writes cumulative CSV + dated Excel, **detects revisions**           |
+| `main(argv)`                      | CLI                                                                  |
 
 CLI options: `--wid`, `--fiscal`, `--annee-min`, `--base-deflation`,
 `--millesime-wid|insee|dgfip`, `--download`, `--full`, `--wid-api-key`,
@@ -52,13 +52,13 @@ CLI options: `--wid`, `--fiscal`, `--annee-min`, `--base-deflation`,
 
 ### 2.2 `netfetch.py` — network layer
 
-| Function | Role |
-|---|---|
-| `_http_get(url, …)` | Robust GET: timeout + exponential retries |
-| `fetch_wid(api_key_b64, areas, codes, …)` | WID API call (restricted indicator list) |
-| `fetch_wid_available(api_key_b64, areas, sixlets, …)` | Discovers the wealth percentiles available for a country |
-| `fetch_wid_full(api_key_b64, areas, …)` | API-side "full file": all wealth percentiles, in batches of 40 |
-| `download_file(url, dest, …)` | Direct download of a file (DGFiP Excel), no key |
+| Function                                              | Role                                                           |
+| ----------------------------------------------------- | -------------------------------------------------------------- |
+| `_http_get(url, …)`                                   | Robust GET: timeout + exponential retries                      |
+| `fetch_wid(api_key_b64, areas, codes, …)`             | WID API call (restricted indicator list)                       |
+| `fetch_wid_available(api_key_b64, areas, sixlets, …)` | Discovers the wealth percentiles available for a country       |
+| `fetch_wid_full(api_key_b64, areas, …)`               | API-side "full file": all wealth percentiles, in batches of 40 |
+| `download_file(url, dest, …)`                         | Direct download of a file (DGFiP Excel), no key                |
 
 ---
 
@@ -66,20 +66,20 @@ CLI options: `--wid`, `--fiscal`, `--annee-min`, `--base-deflation`,
 
 One row = one Observation. This is the central **data contract** of the app.
 
-| Column | Type | Description | Examples |
-|---|---|---|---|
-| `annee` | int | Year of the Observation | `2021` |
-| `source` | str | Producer | `WID`, `INSEE`, `DGFiP` |
-| `concept_patrimoine` | str | Wealth concept measured | `net`, `brut`, `total` (ISF), `immobilier` (IFI) |
-| `unite` | str | Statistical unit | `adulte`, `menage`, `foyer_fiscal` |
-| `groupe` | str | Sub-population | `ensemble`, `top10`, `top1`, `top0_1`, `bottom50`, `redevables`, … |
-| `indicateur` | str | The measure | `part_patrimoine`, `gini`, `patrimoine_moyen`, `seuil`, `nb_foyers`, `impot_moyen` |
-| `valeur` | float | Numeric value | `27.0` |
-| `unite_valeur` | str | Unit of the value | `%`, `indice`, `euros`, `euros_constants_2021`, `effectif` |
-| `euros_constants` | bool | Deflated value? | `true`/`false` |
-| `date_extraction` | date | **[Historisation]** date of the pull | `2026-06-12` |
-| `millesime_source` | str | **[Historisation]** version of the source file | `WID 2026`, `DGFiP 2024` |
-| `notes` | str | Source variable, treatments, breaks | `WID API shweal_p99p100_992_j` |
+| Column               | Type  | Description                                    | Examples                                                                           |
+| -------------------- | ----- | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `annee`              | int   | Year of the Observation                        | `2021`                                                                             |
+| `source`             | str   | Producer                                       | `WID`, `INSEE`, `DGFiP`                                                            |
+| `concept_patrimoine` | str   | Wealth concept measured                        | `net`, `brut`, `total` (ISF), `immobilier` (IFI)                                   |
+| `unite`              | str   | Statistical unit                               | `adulte`, `menage`, `foyer_fiscal`                                                 |
+| `groupe`             | str   | Sub-population                                 | `ensemble`, `top10`, `top1`, `top0_1`, `bottom50`, `redevables`, …                 |
+| `indicateur`         | str   | The measure                                    | `part_patrimoine`, `gini`, `patrimoine_moyen`, `seuil`, `nb_foyers`, `impot_moyen` |
+| `valeur`             | float | Numeric value                                  | `27.0`                                                                             |
+| `unite_valeur`       | str   | Unit of the value                              | `%`, `indice`, `euros`, `euros_constants_2021`, `effectif`                         |
+| `euros_constants`    | bool  | Deflated value?                                | `true`/`false`                                                                     |
+| `date_extraction`    | date  | **[Historisation]** date of the pull           | `2026-06-12`                                                                       |
+| `millesime_source`   | str   | **[Historisation]** version of the source file | `WID 2026`, `DGFiP 2024`                                                           |
+| `notes`              | str   | Source variable, treatments, breaks            | `WID API shweal_p99p100_992_j`                                                     |
 
 **Historisation key** (`HIST_KEYS`): `annee, source, concept_patrimoine,
 unite, groupe, indicateur`. A Révision = same key + different value + different
@@ -95,11 +95,11 @@ overwritten).
 
 ## 4. The sources (ingestion detail)
 
-| Source | Convention | Coverage | Access | Notes |
-|---|---|---|---|---|
-| **WID.world** | adulte / **net** wealth, equal-split | long annual series | **API** (key) or manual ZIP file | Reference for the top (combines fiscal + national accounts) |
-| **INSEE** (HVP) | ménage / **brut** wealth | survey waves (1998, 2004, 2010, 2015, 2018, 2021, 2023) | curated points / FPR files / CASD | No dedicated API for the aggregates |
-| **DGFiP** (ISF/IFI) | foyer fiscal | annual | Excel on impots.gouv.fr / data.gouv.fr | **2018 break** |
+| Source              | Convention                           | Coverage                                                | Access                                 | Notes                                                       |
+| ------------------- | ------------------------------------ | ------------------------------------------------------- | -------------------------------------- | ----------------------------------------------------------- |
+| **WID.world**       | adulte / **net** wealth, equal-split | long annual series                                      | **API** (key) or manual ZIP file       | Reference for the top (combines fiscal + national accounts) |
+| **INSEE** (HVP)     | ménage / **brut** wealth             | survey waves (1998, 2004, 2010, 2015, 2018, 2021, 2023) | curated points / FPR files / CASD      | No dedicated API for the aggregates                         |
+| **DGFiP** (ISF/IFI) | foyer fiscal                         | annual                                                  | Excel on impots.gouv.fr / data.gouv.fr | **2018 break**                                              |
 
 ### 4.1 WID — API details
 
@@ -195,14 +195,14 @@ wealth-fr/
 
 ### 6.4 API contract (proposal)
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/meta` | Value lists: sources, indicateurs, groupes, conventions, millésimes |
-| `GET` | `/api/series` | Filtered series. Query: `source, indicateur, groupe, concept, unite, annee_min, annee_max, euros_constants` |
-| `GET` | `/api/compare` | Same indicateur/groupe across several sources |
-| `GET` | `/api/revisions` | Observations with several millésimes (value diff) |
-| `GET` | `/api/sources` | Metadata + attributions/licences (see §7) |
-| `GET` | `/api/export.csv` | Export of the filtered view |
+| Method | Endpoint          | Description                                                                                                 |
+| ------ | ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/meta`       | Value lists: sources, indicateurs, groupes, conventions, millésimes                                         |
+| `GET`  | `/api/series`     | Filtered series. Query: `source, indicateur, groupe, concept, unite, annee_min, annee_max, euros_constants` |
+| `GET`  | `/api/compare`    | Same indicateur/groupe across several sources                                                               |
+| `GET`  | `/api/revisions`  | Observations with several millésimes (value diff)                                                           |
+| `GET`  | `/api/sources`    | Metadata + attributions/licences (see §7)                                                                   |
+| `GET`  | `/api/export.csv` | Export of the filtered view                                                                                 |
 
 `/api/series` response (example):
 
