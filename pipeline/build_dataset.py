@@ -39,6 +39,7 @@ Sources
 Sortie
 ------
 - dataset_concentration_patrimoine_fr.csv   (cumulatif, append horodaté)
+- dataset_concentration_patrimoine_fr.parquet  (cumulatif, chemin rapide du backend)
 - dataset_concentration_patrimoine_fr_<timestamp>.xlsx  (snapshot de l'extraction)
 
 Dépendances : pandas, openpyxl.
@@ -393,6 +394,13 @@ def write_outputs(df: pd.DataFrame, stem: str, append: bool, out_dir: Path) -> N
 
     combined.to_csv(csv_path, index=False, encoding="utf-8")
     print(f"[out] CSV cumulatif : {csv_path}  ({len(combined)} lignes au total)")
+
+    # Parquet of the SAME cumulative dataframe — the backend's preferred fast
+    # path (`_source_relation`); the CSV stays the canonical fallback. Same tidy
+    # schema, no transformation (HANDOFF §3, jalon 2).
+    parquet_path = out_dir / f"{stem}.parquet"
+    combined.to_parquet(parquet_path, index=False)
+    print(f"[out] Parquet cumulatif : {parquet_path}  ({len(combined)} lignes au total)")
 
     # Snapshot Excel daté de CETTE extraction (data + sources + dico).
     ts = dt.datetime.now().strftime("%Y%m%d_%H%M%S")

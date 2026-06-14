@@ -60,7 +60,7 @@ def _source_relation(con: duckdb.DuckDBPyConnection) -> str:
         return f"read_csv_auto('{CSV}')"
     raise FileNotFoundError(
         "No dataset found. Run the pipeline first: "
-        "`python pipeline/build_dataset.py` (and add a Parquet output, jalon 2)."
+        "`python pipeline/build_dataset.py` (writes the CSV + Parquet)."
     )
 
 
