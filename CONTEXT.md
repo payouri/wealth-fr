@@ -25,7 +25,7 @@ The entity the value is counted over — `adulte`, `menage`, or `foyer_fiscal`.
 _Avoid_: unit, level
 
 **Convention**:
-The (Unité + Concept) pair carried by a Source. The guard rail of the whole product: values may only be compared within the same Convention.
+An (Unité + Concept) pair. The guard rail of the whole product: values may only be compared within the same Convention. A Source carries one Unité but possibly several Conventions (one per Concept it spans — see Relationships).
 _Avoid_: methodology, basis
 
 **Groupe**:
@@ -58,7 +58,7 @@ _Avoid_: real terms, adjusted
 
 ## Relationships
 
-- A **Source** has exactly one **Convention** (Unité + Concept)
+- A **Source** has exactly one **Unité**, but one *or more* **Concepts de patrimoine** — a new Concept begins at a **Rupture** (DGFiP carries `total` through 2017, then `immobilier` from 2018). So a Source can span more than one **Convention**; only the Unité is fixed per Source.
 - An **Observation** belongs to one **Source** and carries one **Concept**, one **Unité**, one **Groupe**, one **Indicateur**
 - A **Révision** links two **Observations** sharing a historisation key but differing in value and **Millésime**
 - The historisation key is `annee, source, concept_patrimoine, unite, groupe, indicateur`
