@@ -1,4 +1,6 @@
-pandas
-openpyxl
-requests
-pyarrow
+# Pinned for reproducible image builds (the base image is digest-pinned too).
+# Bump deliberately; keep pandas/pyarrow in sync with backend/requirements.txt.
+pandas==3.0.3
+openpyxl==3.1.5
+requests==2.34.2
+pyarrow==24.0.0

@@ -1,6 +1,8 @@
-fastapi
-uvicorn[standard]
-duckdb
-pydantic
-pandas
-pyarrow
+# Pinned for reproducible image builds (the base image is digest-pinned too).
+# Bump deliberately; regenerate from the working .venv with `pip freeze`.
+fastapi==0.137.0
+uvicorn[standard]==0.49.0
+duckdb==1.5.3
+pydantic==2.13.4
+pandas==3.0.3
+pyarrow==24.0.0
