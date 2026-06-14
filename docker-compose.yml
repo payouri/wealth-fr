@@ -38,9 +38,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    # traffic routed through Traefik/Caddy proxy over a Docker network and the domain is already assigned
-    expose:
-      - "8080"
+    ports:
+      - 8080:8080
     # Bind to loopback only; rootless nginx serves on :8080 inside the container.
     # ports:
     # - "127.0.0.1:8080:8080"
