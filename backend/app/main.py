@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -149,7 +150,12 @@ def export_csv(
     writer = csv.DictWriter(buffer, fieldnames=data.EXPORT_COLUMNS)
     writer.writeheader()
     writer.writerows(rows)
-    filename = f"{source}_{indicateur}_{groupe}.csv"
+    # Sanitize the filter parts before they land in the Content-Disposition
+    # header: a quote (or other odd char) in a query param would break the
+    # quoted filename. Mirrors the frontend's `exportStem` so server- and
+    # client-named downloads agree.
+    stem = re.sub(r"[^\w.-]+", "-", f"{source}_{indicateur}_{groupe}")
+    filename = f"{stem}.csv"
     return StreamingResponse(
         iter([buffer.getvalue()]),
         media_type="text/csv",
