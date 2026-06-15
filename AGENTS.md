@@ -133,11 +133,12 @@ Things the code won't tell you, that have already bitten this project:
 - **Live network: WID validated; DGFiP parser done, no single URL.** As of 2026-06
   the **WID** API runs live in prod (real `WID 2026` Millésime). **DGFiP** parses
   real ISF/IFI workbooks (`pipeline/dgfip_parse.py`, jalon 6.5) with a download/parse
-  → curated-CSV/points fallback. There is **no single IFI URL**: the 3 national
-  breakdowns live under stable `/node/` links, configured via the registry
-  `DGFIP_SOURCE_URLS` (`netfetch.dgfip_source_urls()`); only a live prod run of the
-  fetch is still pending (parser runs against locally-supplied files). INSEE is
-  curated by design. (HANDOFF.md §10)
+  → curated-CSV/points fallback. There is **no single IFI URL**: the 3 IFI national
+  breakdowns live under stable `/node/` links and the frozen ISF 1999–2017 series
+  under a data.gouv.fr resource, configured via the registry `DGFIP_SOURCE_URLS`
+  (`netfetch.dgfip_source_urls()`); only a live prod run of the fetch is still
+  pending (parser runs against locally-supplied files). INSEE is curated by design.
+  (HANDOFF.md §10)
 - **Parquet preferred, CSV fallback.** The backend reads Parquet if present, else
   the cumulative CSV. The Parquet output now ships (**jalon 2** done); both files
   are gitignored — in production the data lives in a Coolify-managed `dataset`

@@ -69,6 +69,10 @@ DGFIP_SOURCE_URLS_DEFAULT = [
     "https://www.impots.gouv.fr/node/25582",  # IFI — déciles de patrimoine net taxable
     "https://www.impots.gouv.fr/node/25583",  # IFI — déciles de RFR des redevables
     "https://www.impots.gouv.fr/node/25584",  # IFI — tranches de taux marginal
+    # ISF 1999-2017 : série figée (ISF supprimé en 2018). Resource data.gouv.fr
+    # stable (redirige vers le .xls impots.gouv.fr). Récupérée une fois ; les
+    # lignes parsées persistent ensuite dans le dataset (volume).
+    "https://www.data.gouv.fr/api/1/datasets/r/1ca0d574-22b1-47e0-9711-3538302c50d5",
 ]
 
 

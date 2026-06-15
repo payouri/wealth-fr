@@ -287,7 +287,8 @@ Status: ✅ implemented · ⏳ stubbed (`raise NotImplementedError` / `TODO(jalo
   verbatim** in `x-api-key`. May rotate / be rate-limited → cache it on the
   backend, do not call WID on every user request.
 - `DGFIP_SOURCE_URLS` (env) — comma/space-separated registry of DGFiP source URLs.
-  Empty → built-in default (the 3 IFI `/node/` links). `DGFIP_IFI_XLS_URL` (legacy
+  Empty → built-in default (3 IFI `/node/` links + the ISF data.gouv.fr resource).
+  `DGFIP_IFI_XLS_URL` (legacy
   single URL) is still honoured and appended to the registry for back-compat.
 
 ---
@@ -309,7 +310,7 @@ fixture. Each open jalon has (or gets) its own `ready-for-agent` issue.
 | **4** | frontend | ✅ done (#4) | Routing (`react-router-dom`) + URL state; design tokens wired; full filter bar from `/api/meta` incl. Concept picker, 422 fallback, euros toggle; two stacked charts (shares + Gini) via TanStack Query; 2018 amber rupture marker; loading/empty-200/422/error states; traceability line. |
 | **5** | frontend | ⏳ pending (#5) | `GET /api/compare` (fans the jalon-3 resolver across sources, dimensionless only — ADR 0003) + comparison view with Convention-labelled legend and "niveaux non comparables" banner. |
 | **6** | frontend | ⏳ pending (#6) | `GET /api/revisions` (returns `RevisionDiff` for Observations across >1 Millésime) + a Révisions table mounted in the Sources & méthodologie route. |
-| **6.5** | data/ops | 🟡 partly done (#7) | **Live integration validation.** ✅ The real **WID** API now runs live in prod (key, format, batched fetch) and a real `WID 2026` Millésime exists. ✅ The **DGFiP** `.xls`/`.xlsx` parser exists (`pipeline/dgfip_parse.py`) and is validated against the real workbooks: the 3 IFI national breakdowns — déciles de patrimoine (`/node/25582`), déciles de RFR (`/node/25583`), tranches de taux marginal (`/node/25584`) — each namespaced into `groupe` (`decile_patrimoine_*` / `decile_rfr_*` / `tranche_marginale_*`), plus ISF 1999–2017. There is **no single URL**: `netfetch.dgfip_source_urls()` is a registry (`DGFIP_SOURCE_URLS`, default = the 3 `/node/` links) downloaded as a lot; download/parse failures fall back to the curated CSV / pre-filled points. ⏳ Still pending: a live prod run of the registry fetch. Executes the ADR 0001 precondition / §10 risk. |
+| **6.5** | data/ops | 🟡 partly done (#7) | **Live integration validation.** ✅ The real **WID** API now runs live in prod (key, format, batched fetch) and a real `WID 2026` Millésime exists. ✅ The **DGFiP** `.xls`/`.xlsx` parser exists (`pipeline/dgfip_parse.py`) and is validated against the real workbooks: the 3 IFI national breakdowns — déciles de patrimoine (`/node/25582`), déciles de RFR (`/node/25583`), tranches de taux marginal (`/node/25584`) — each namespaced into `groupe` (`decile_patrimoine_*` / `decile_rfr_*` / `tranche_marginale_*`), plus the frozen ISF 1999–2017 series (data.gouv.fr resource → `nb_foyers`, `total`). There is **no single URL**: `netfetch.dgfip_source_urls()` is a registry (`DGFIP_SOURCE_URLS`, default = the 3 IFI `/node/` links + the ISF data.gouv.fr resource) downloaded as a lot; download/parse failures fall back to the curated CSV / pre-filled points. ⏳ Still pending: a live prod run of the registry fetch. Executes the ADR 0001 precondition / §10 risk. |
 | **7** | data/ops | ✅ superseded by Coolify (#8) | Scheduled refresh of the Millésime. **Realised differently from the original plan:** instead of a GitHub Action committing the dataset to the repo, production refreshes via a **Coolify Scheduled Task** that `docker exec`s the always-on `pipeline-runner` (`docker-compose.production.yml`) running `--download --full` into a persistent `dataset` volume — the data is **not** versioned in the repo. (The GitHub-Action variant was dropped.) Effective once live data exists (jalon 6.5). |
 | **8** | frontend | ⏳ pending (#9) | Sources & méthodologie page (Conventions, ISF→IFI, survey limits, Millésimes/Révisions narrative) + `GET /api/sources` returning `SourceInfo` (url / convention / licence / attribution). Wraps the jalon-6 Révisions section. |
 | **9** | frontend | ⏳ pending (#10) | Export: `GET /api/export.csv` (streams the filtered rows via the resolver) + client-side chart **PNG** export on Dashboard and Comparison. Share-a-view is already covered by jalon-4 URL state. |
@@ -328,8 +329,10 @@ lookup, meta builder, dataset source resolver) — no parallel resolution paths.
   locally-supplied files).
 - **DGFiP — no single URL (registry)**: the IFI national stats ship as 3 files
   under stable `/node/` links (`25582` patrimoine, `25583` RFR, `25584` taux
-  marginal). `netfetch.dgfip_source_urls()` is the registry (env `DGFIP_SOURCE_URLS`,
-  default = the 3 links; legacy `DGFIP_IFI_XLS_URL` is appended for back-compat);
+  marginal); the frozen ISF 1999–2017 series comes from a stable data.gouv.fr
+  resource. `netfetch.dgfip_source_urls()` is the registry (env `DGFIP_SOURCE_URLS`,
+  default = 3 IFI `/node/` links + the ISF data.gouv.fr resource; legacy
+  `DGFIP_IFI_XLS_URL` is appended for back-compat);
   `download_sources()` fetches the lot into the data dir.
 - **DGFiP Excel parsing — done**: `dgfip_parse` parses each IFI breakdown
   (auto-detected slice → `decile_patrimoine_*` / `decile_rfr_*` /
