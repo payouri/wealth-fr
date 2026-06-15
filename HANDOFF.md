@@ -181,7 +181,7 @@ it visually** (marker on 2018).
   volume the backend reads — see `docker-compose.production.yml`. The dataset is
   **not** committed to the repo (artifacts are gitignored; the volume is the store
   of record on the server). The original jalon-7 GitHub Action approach is
-  superseded by this and parked (a stub `refresh-data.yml` remains).
+  superseded by this and was dropped.
 
 ### 6.3 Tree (realised — pnpm workspace, single host via docker compose)
 
@@ -213,7 +213,7 @@ wealth-fr/                    # GitHub repo payouri/wealth-fr (local dir: eco_st
 ├── docs/adr/                 # 0001 pipeline-off-compose, 0002 series resolution, 0003 compare scope
 ├── docker-compose.yml        # backend + frontend (+ pipeline under profile data)
 ├── package.json              # pnpm workspace root: bootstrap / dev / api / web
-├── .github/workflows/        # ci.yml, security.yml, refresh-data.yml (jalon-7 stub: builds but does not yet commit)
+├── .github/workflows/        # ci.yml, security.yml
 ├── HANDOFF.md                # this document
 ├── AGENTS.md / CONTEXT.md / PRODUCT.md / DESIGN.md / README.md
 ```
@@ -306,7 +306,7 @@ fixture. Each open jalon has (or gets) its own `ready-for-agent` issue.
 | **5** | frontend | ⏳ pending (#5) | `GET /api/compare` (fans the jalon-3 resolver across sources, dimensionless only — ADR 0003) + comparison view with Convention-labelled legend and "niveaux non comparables" banner. |
 | **6** | frontend | ⏳ pending (#6) | `GET /api/revisions` (returns `RevisionDiff` for Observations across >1 Millésime) + a Révisions table mounted in the Sources & méthodologie route. |
 | **6.5** | data/ops | 🟡 partly done (#7) | **Live integration validation.** ✅ The real **WID** API now runs live in prod (key, format, batched fetch) and a real `WID 2026` Millésime exists. ⏳ Still pending: the **DGFiP** `.xlsx` parser against a real file (today DGFiP loads a curated CSV / pre-filled points), and explicit auth-failure → local-fallback coverage. Executes the ADR 0001 precondition / §10 risk. |
-| **7** | data/ops | ✅ superseded by Coolify (#8) | Scheduled refresh of the Millésime. **Realised differently from the original plan:** instead of a GitHub Action committing the dataset to the repo, production refreshes via a **Coolify Scheduled Task** that `docker exec`s the always-on `pipeline-runner` (`docker-compose.production.yml`) running `--download --full` into a persistent `dataset` volume — the data is **not** versioned in the repo. The GitHub-Action variant (`.github/workflows/refresh-data.yml`) is a parked stub. Effective once live data exists (jalon 6.5). |
+| **7** | data/ops | ✅ superseded by Coolify (#8) | Scheduled refresh of the Millésime. **Realised differently from the original plan:** instead of a GitHub Action committing the dataset to the repo, production refreshes via a **Coolify Scheduled Task** that `docker exec`s the always-on `pipeline-runner` (`docker-compose.production.yml`) running `--download --full` into a persistent `dataset` volume — the data is **not** versioned in the repo. (The GitHub-Action variant was dropped.) Effective once live data exists (jalon 6.5). |
 | **8** | frontend | ⏳ pending (#9) | Sources & méthodologie page (Conventions, ISF→IFI, survey limits, Millésimes/Révisions narrative) + `GET /api/sources` returning `SourceInfo` (url / convention / licence / attribution). Wraps the jalon-6 Révisions section. |
 | **9** | frontend | ⏳ pending (#10) | Export: `GET /api/export.csv` (streams the filtered rows via the resolver) + client-side chart **PNG** export on Dashboard and Comparison. Share-a-view is already covered by jalon-4 URL state. |
 

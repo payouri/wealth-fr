@@ -32,7 +32,7 @@ wealth-fr/
 ├── frontend/        # React + TS + Tailwind v4 + Vite 8 + Recharts (Dashboard live; Comparison/Sources stubbed)
 │   ├── src/         # api/ · components/ · hooks/ · lib/ · views/
 │   └── Dockerfile   nginx.conf   # multi-stage build → nginx static + /api proxy
-├── .github/workflows/   # ci.yml · security.yml · refresh-data.yml (jalon-7 stub)
+├── .github/workflows/   # ci.yml · security.yml
 ├── CONTEXT.md       # domain glossary (the data contract in words)
 └── docs/adr/        # architecture decision records
 ```
