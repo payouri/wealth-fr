@@ -1,9 +1,16 @@
 # Handoff — Webapp "Concentration du patrimoine en France depuis 2000"
 
-> Handoff document for a coding agent. Goal: scaffold a complete web application
-> from the work already done (the Python data pipeline). Everything below reflects
-> the real state of the existing code and the methodological decisions already
-> made; the "to build" sections are recommendations to adapt.
+> Handoff document for a coding agent building a web application on top of the
+> existing Python data pipeline. Everything below reflects the real state of the
+> code and the methodological decisions already made.
+>
+> **Progress (2026-06):** the scaffold is no longer structure-only. Jalons 2
+> (Parquet output), 3 (backend `/api/meta` + `/api/series`) and 4 (frontend
+> routing + URL state + dashboard) are **done** (GitHub issues #3, #1, #4). The
+> remaining roadmap lives in the **epic [#2](https://github.com/payouri/wealth-fr/issues/2)**;
+> per-jalon status is tracked in §9. Sections §6.2/§6.4/§9 below are kept current;
+> their original "to build" proposals now read as the realised design where a
+> jalon is marked done.
 
 ---
 
@@ -23,14 +30,17 @@ The web app must let users **explore and visualize** these series (top 10% / 1% 
 
 ## 2. Current state: the data pipeline
 
-Two working, tested Python files (tested against simulated responses;
-**not validated against the real servers**, because the development environment
-had a restricted network).
+Two working, tested Python files. Originally validated only against simulated
+responses (restricted dev network), but as of **2026-06 the WID API has been run
+live in production** — a real `WID 2026` Millésime (~157k observations) now exists
+in the prod `dataset` volume. **DGFiP** still loads curated points / a local CSV
+(the live `.xlsx` parser is jalon 6.5, pending); **INSEE** is curated by design.
 
 ### 2.1 `build_dataset.py` — orchestrator
 
-Builds the harmonized, historised dataset, then writes it to CSV (cumulative) and
-Excel (snapshot).
+Builds the harmonized, historised dataset, then writes it to CSV (cumulative),
+**Parquet (cumulative, the backend's preferred fast path — added in jalon 2)** and
+Excel (dated snapshot).
 
 Key functions:
 
@@ -43,10 +53,10 @@ Key functions:
 | `_stamp(rows, date, millesime)`   | Adds the historisation fields                                        |
 | `deflate_levels(df, base_year)`   | Converts levels (€) to constant euros (alters neither % nor Gini)    |
 | `harmonize(*frames, annee_min)`   | Stacks the sources, filters the period, orders, validates the schema |
-| `write_outputs(df, stem, append)` | Writes cumulative CSV + dated Excel, **detects revisions**           |
+| `write_outputs(df, stem, append, out_dir)` | Writes cumulative CSV + cumulative Parquet + dated Excel, **detects revisions** |
 | `main(argv)`                      | CLI                                                                  |
 
-CLI options: `--wid`, `--fiscal`, `--annee-min`, `--base-deflation`,
+CLI options: `--wid`, `--fiscal`, `--annee-min`, `--out-dir`, `--base-deflation`,
 `--millesime-wid|insee|dgfip`, `--download`, `--full`, `--wid-api-key`,
 `--dgfip-url`, `--no-append`.
 
@@ -155,54 +165,77 @@ it visually** (marker on 2018).
 - **Annotate the breaks** (2018 ISF→IFI) and millésime changes.
 - Allow **export** (CSV/PNG) and **sharing** of a filtered view.
 
-### 6.2 Recommended stack (to adapt)
+### 6.2 Stack (realised — see the Appendix for divergences from the original proposal)
 
-- **Data**: keep the existing Python scripts as the ingestion layer. Pivot output
-  in **Parquet** (in addition to CSV) for performance.
-- **Backend**: **FastAPI** (Python) — reuses the pipeline and pandas directly.
-  Storage: DuckDB or SQLite over the harmonized file (sufficient, the volume is
-  small; a few thousand rows).
-- **Frontend**: **React + TypeScript + Vite**, charting via **Recharts** or
-  **visx**. Server state via **TanStack Query**.
-- **Scheduled task**: a job (cron / GitHub Action) reruns the pipeline in
-  `--download --full` mode and commits/publishes the new millésime.
+- **Data**: the existing Python scripts are the ingestion layer. ✅ Parquet output
+  added beside the CSV for performance (jalon 2).
+- **Backend**: ✅ **FastAPI** (Python) reusing the pipeline and pandas directly.
+  Storage: **DuckDB** over the harmonized file (Parquet preferred, CSV fallback) —
+  sufficient, the volume is small (a few thousand rows).
+- **Frontend**: ✅ **React + TypeScript + Vite + Tailwind v4**, charting via
+  **Recharts** (not visx). Server state via **TanStack Query**; routing + URL
+  state via **react-router-dom**.
+- **Scheduled refresh**: ✅ in production this is a **Coolify Scheduled Task** that
+  `docker exec`s the always-on `pipeline-runner` container
+  (`python build_dataset.py --download --full`), writing the persistent `dataset`
+  volume the backend reads — see `docker-compose.production.yml`. The dataset is
+  **not** committed to the repo (artifacts are gitignored; the volume is the store
+  of record on the server). The original jalon-7 GitHub Action approach is
+  superseded by this and parked (a stub `refresh-data.yml` remains).
 
-### 6.3 Proposed tree
+### 6.3 Tree (realised — pnpm workspace, single host via docker compose)
 
 ```
-wealth-fr/
-├── pipeline/                 # existing code, lightly reorganized
+wealth-fr/                    # GitHub repo payouri/wealth-fr (local dir: eco_stats_viewer)
+├── pipeline/                 # ingestion code
 │   ├── build_dataset.py
 │   ├── netfetch.py
+│   ├── requirements.txt
+│   ├── Dockerfile            # opt-in `--profile data` service (ADR 0001)
 │   ├── data/                 # WID_data_FR.csv, dgfip_isf_ifi.csv (raw sources)
-│   └── out/                  # dataset_*.csv / .parquet / .xlsx
+│   └── out/                  # dataset_*.csv + .parquet + dated .xlsx (gitignored; in prod the data lives in a Coolify volume)
 ├── backend/
 │   ├── app/
-│   │   ├── main.py           # FastAPI
-│   │   ├── data.py           # parquet -> DuckDB loading, queries
+│   │   ├── main.py           # FastAPI routes
+│   │   ├── data.py           # parquet -> DuckDB loading, queries, resolver
 │   │   └── models.py         # Pydantic schemas (see contract §6.4)
-│   └── tests/
-├── frontend/
+│   ├── tests/                # test_contract.py, test_resolver.py, test_meta.py, …
+│   └── Dockerfile
+├── frontend/                 # React 19 + TS + Tailwind v4 + Vite
 │   ├── src/
-│   │   ├── api/              # typed client
-│   │   ├── components/       # charts, filters, break annotations
-│   │   └── views/            # Dashboard, Comparison, Sources/Methodology
+│   │   ├── api/              # typed client (client.ts) + types.ts (contract mirror)
+│   │   ├── components/       # SeriesChart (Recharts), FilterBar, figure, ui/ (shadcn)
+│   │   ├── hooks/            # useDashboardParams (URL state), usePrefersReducedMotion
+│   │   ├── lib/              # domain.ts (labels/formatting), utils.ts
+│   │   └── views/            # Dashboard (real), Comparison + SourcesMethodo (stubs)
+│   ├── Dockerfile            # nginx serves the built SPA, proxies /api
 │   └── package.json
-├── .github/workflows/refresh-data.yml
+├── docs/adr/                 # 0001 pipeline-off-compose, 0002 series resolution, 0003 compare scope
+├── docker-compose.yml        # backend + frontend (+ pipeline under profile data)
+├── package.json              # pnpm workspace root: bootstrap / dev / api / web
+├── .github/workflows/        # ci.yml, security.yml, refresh-data.yml (jalon-7 stub: builds but does not yet commit)
 ├── HANDOFF.md                # this document
-└── README.md
+├── AGENTS.md / CONTEXT.md / PRODUCT.md / DESIGN.md / README.md
 ```
 
-### 6.4 API contract (proposal)
+### 6.4 API contract
 
-| Method | Endpoint          | Description                                                                                                 |
-| ------ | ----------------- | ----------------------------------------------------------------------------------------------------------- |
-| `GET`  | `/api/meta`       | Value lists: sources, indicateurs, groupes, conventions, millésimes                                         |
-| `GET`  | `/api/series`     | Filtered series. Query: `source, indicateur, groupe, concept` **(required)**`, unite` (optional, derived from `source`)`, annee_min, annee_max, euros_constants, millesime`. One Convention + one Millésime; ambiguous Conventions → `422` with choices (ADR 0002). |
-| `GET`  | `/api/compare`    | Same indicateur/groupe across several sources                                                               |
-| `GET`  | `/api/revisions`  | Observations with several millésimes (value diff)                                                           |
-| `GET`  | `/api/sources`    | Metadata + attributions/licences (see §7)                                                                   |
-| `GET`  | `/api/export.csv` | Export of the filtered view                                                                                 |
+Status: ✅ implemented · ⏳ stubbed (`raise NotImplementedError` / `TODO(jalon N)`) ·
+✖ not yet defined. The Pydantic models for every row below already exist in
+[backend/app/models.py](./backend/app/models.py) and their TS mirrors in
+[frontend/src/api/types.ts](./frontend/src/api/types.ts) — only the handlers are pending.
+
+| Status | Method | Endpoint          | Description                                                                                                 |
+| ------ | ------ | ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| ✅      | `GET`  | `/api/meta`       | Value lists: sources, indicateurs, groupes, conventions, millésimes                                         |
+| ✅      | `GET`  | `/api/series`     | Filtered series. Query: `source, indicateur, groupe, concept` **(required)**`, unite` (optional, derived from `source`)`, annee_min, annee_max, euros_constants, millesime`. One Convention + one Millésime; ambiguous Conventions → `422` with choices (ADR 0002). |
+| ⏳ jalon 5 | `GET`  | `/api/compare`    | Same indicateur/groupe across several sources (dimensionless only — ADR 0003)                               |
+| ⏳ jalon 6 | `GET`  | `/api/revisions`  | Observations with several millésimes (value diff) — returns `RevisionDiff`                                  |
+| ⏳ jalon 8 | `GET`  | `/api/sources`    | Metadata + attributions/licences (see §7) — returns `SourceInfo`                                            |
+| ✖ jalon 9  | `GET`  | `/api/export.csv` | Export of the filtered view                                                                                 |
+
+> There is also a ✅ `GET /api/health` liveness probe (used by the compose
+> healthcheck), not part of the data contract.
 
 `/api/series` response (example):
 
@@ -218,12 +251,19 @@ wealth-fr/
 
 ### 6.5 Frontend views
 
-1. **Dashboard** — top-share + Gini curves since 2000; source/Convention toggle;
-   2018 break marker.
-2. **Source comparison** — overlay of WID vs INSEE vs DGFiP with an explicit
-   reminder of the Conventions (unambiguous legend).
-3. **Sources & methodology** — explains Conventions, the ISF/IFI break, survey
-   limits, attributions/licences, millésimes and Révisions.
+1. ✅ **Dashboard** (`/dashboard`) — top-share + Gini curves since 2000 in two
+   stacked charts; filter bar from `/api/meta` (source/indicateur/groupe/concept +
+   euros toggle); Concept picker + 422 "pick a Convention" fallback; 2018 break
+   marker in the amber `rupture` token; per-figure traceability line; filter state
+   in the URL. (jalon 4)
+2. ⏳ **Source comparison** (`/comparison`) — routed **placeholder** today. Will
+   overlay WID vs INSEE vs DGFiP for one dimensionless indicateur, each line
+   Convention-labelled, with a "formes comparables, niveaux non comparables" banner.
+   (jalon 5)
+3. ⏳ **Sources & methodology** (`/sources`) — routed **placeholder** today. Will
+   explain Conventions, the ISF/IFI break, survey limits, attributions/licences,
+   millésimes and Révisions (the Révisions table lands in jalon 6, the narrative +
+   licences in jalon 8).
 
 ---
 
@@ -248,30 +288,39 @@ wealth-fr/
 
 ---
 
-## 9. Scaffolding tasks (proposed jalons)
+## 9. Jalon roadmap
 
-1. **Repo & monorepo**: create the §6.3 tree, move the two scripts into
-   `pipeline/`, add `requirements.txt` (pandas, openpyxl, requests, fastapi,
-   uvicorn, duckdb) and a `README`.
-2. **Pivot step**: add a **Parquet** output to the pipeline in addition to CSV.
-3. **Backend**: FastAPI + DuckDB loading of the parquet; implement `/api/meta`
-   and `/api/series` first; tests against the §6.4 contract.
-4. **Frontend**: Vite + React + TS; typed API client; Dashboard with a first
-   curve (WID top 1%).
-5. **Annotations & comparison**: 2018 break marker, multi-source comparison view
-   with Convention guard rails.
-6. **Revisions**: `/api/revisions` + a small diff view between millésimes.
-7. **Refresh**: a GitHub Action running `--download --full`, publishing the new
-   millésime (and detecting Révisions via the pipeline's output).
-8. **Methodology & licences**: a dedicated page (§4, §5, §7).
+This is the authoritative roadmap referenced by `TODO(jalon N)` markers in code.
+The sequencing was refined in the **epic [#2](https://github.com/payouri/wealth-fr/issues/2)**
+(lettered/decimal inserts avoid renumbering): a **frontend track** (4 → 5 → 6 → 8 →
+9) that can proceed entirely against the jalon-3 fixture, and an independent
+**data/ops track** (2 → 6.5 → 7) that only reconverges once real data replaces the
+fixture. Each open jalon has (or gets) its own `ready-for-agent` issue.
+
+| Jalon | Track | Status | Scope |
+| ----- | ----- | ------ | ----- |
+| **1** | scaffold | ✅ done | Repo & monorepo: §6.3 tree, scripts under `pipeline/`, requirements, README. |
+| **2** | data/ops | ✅ done (#3) | **Parquet** output beside the cumulative CSV in the pipeline's write step. |
+| **3** | backend | ✅ done (#1) | FastAPI + DuckDB (Parquet→CSV fallback); `/api/meta` + `/api/series` with the Convention guard rail and single-Millésime resolution (ADR 0002); contract tests. |
+| **4** | frontend | ✅ done (#4) | Routing (`react-router-dom`) + URL state; design tokens wired; full filter bar from `/api/meta` incl. Concept picker, 422 fallback, euros toggle; two stacked charts (shares + Gini) via TanStack Query; 2018 amber rupture marker; loading/empty-200/422/error states; traceability line. |
+| **5** | frontend | ⏳ pending (#5) | `GET /api/compare` (fans the jalon-3 resolver across sources, dimensionless only — ADR 0003) + comparison view with Convention-labelled legend and "niveaux non comparables" banner. |
+| **6** | frontend | ⏳ pending (#6) | `GET /api/revisions` (returns `RevisionDiff` for Observations across >1 Millésime) + a Révisions table mounted in the Sources & méthodologie route. |
+| **6.5** | data/ops | 🟡 partly done (#7) | **Live integration validation.** ✅ The real **WID** API now runs live in prod (key, format, batched fetch) and a real `WID 2026` Millésime exists. ⏳ Still pending: the **DGFiP** `.xlsx` parser against a real file (today DGFiP loads a curated CSV / pre-filled points), and explicit auth-failure → local-fallback coverage. Executes the ADR 0001 precondition / §10 risk. |
+| **7** | data/ops | ✅ superseded by Coolify (#8) | Scheduled refresh of the Millésime. **Realised differently from the original plan:** instead of a GitHub Action committing the dataset to the repo, production refreshes via a **Coolify Scheduled Task** that `docker exec`s the always-on `pipeline-runner` (`docker-compose.production.yml`) running `--download --full` into a persistent `dataset` volume — the data is **not** versioned in the repo. The GitHub-Action variant (`.github/workflows/refresh-data.yml`) is a parked stub. Effective once live data exists (jalon 6.5). |
+| **8** | frontend | ⏳ pending (#9) | Sources & méthodologie page (Conventions, ISF→IFI, survey limits, Millésimes/Révisions narrative) + `GET /api/sources` returning `SourceInfo` (url / convention / licence / attribution). Wraps the jalon-6 Révisions section. |
+| **9** | frontend | ⏳ pending (#10) | Export: `GET /api/export.csv` (streams the filtered rows via the resolver) + client-side chart **PNG** export on Dashboard and Comparison. Share-a-view is already covered by jalon-4 URL state. |
+
+All new backend endpoints **reuse the jalon-3 modules** (series resolver, ruptures
+lookup, meta builder, dataset source resolver) — no parallel resolution paths.
 
 ---
 
 ## 10. Risks / open questions
 
-- **No real validation done**: the WID/DGFiP calls were not tested against the
-  servers (restricted dev network). Jalon 3 must begin with a real integration
-  test (key, response format, rate-limit).
+- **Live validation — partly closed**: as of 2026-06 the **WID** API runs live in
+  prod (real `WID 2026` Millésime). Still open under **jalon 6.5** (#7): the
+  **DGFiP** `.xlsx` parser against a real file (DGFiP currently loads a curated CSV /
+  pre-filled points) and explicit auth-failure → local-fallback handling.
 - **DGFiP Excel parsing**: `download_file` retrieves the file but parsing depends
   on the real layout of the IFI sheet → write a dedicated parser once the file is
   in hand.
@@ -284,26 +333,40 @@ wealth-fr/
 
 ---
 
-## 11. Quick start (current state of the pipeline)
+## 11. Quick start
+
+Full app (see [AGENTS.md](./AGENTS.md) for the canonical command list — pnpm is the
+only package manager):
 
 ```bash
-pip install pandas openpyxl requests
-# Option A — API (automatic retrieval)
-python build_dataset.py --download --full
-# Option B — local file (no key): drop data/WID_data_FR.csv then
-python build_dataset.py --annee-min 2000
-# Outputs: dataset_concentration_patrimoine_fr.csv (+ dated .xlsx)
+nvm use && pnpm bootstrap   # one-time: backend venv + deps, frontend deps
+pnpm dev                    # backend (uvicorn :8000) + frontend (vite :5173)
+# or the production-style stack (nginx SPA + /api proxy on 127.0.0.1:8080):
+docker compose up --build
+```
+
+Pipeline only (run from `pipeline/`; outputs CSV + Parquet + dated `.xlsx`). The
+pipeline is **not** on the compose `up` path — it is an opt-in `--profile data`
+service (ADR 0001):
+
+```bash
+# via docker (keeps output files owned by you):
+UID=$(id -u) GID=$(id -g) docker compose --profile data run --rm pipeline --download --full
+# or directly, from pipeline/:
+pip install -r requirements.txt
+python build_dataset.py --download --full        # API retrieval (needs WID_API_KEY_B64)
+python build_dataset.py --annee-min 2000         # local file fallback (no key)
 ```
 
 ---
 
 ## Appendix — gaps between this document and the built scaffold
 
-This handoff describes the initial intent. The scaffold that was built diverges on
-a few points decided with the user (see `README.md` and `CONTEXT.md`):
+This handoff describes the initial intent. The build diverges from it on a few
+points decided with the user (see `README.md` and `CONTEXT.md`):
 
-- **Repo root**: `wealth-fr` (not `wealth-fr`).
-- **Frontend**: pnpm · React · TypeScript · Tailwind v4 · Vite 8 · **Recharts** (not visx) · TanStack Query.
+- **Repo**: GitHub `payouri/wealth-fr` (the local working directory is `eco_stats_viewer`).
+- **Frontend**: pnpm · React 19 · TypeScript · Tailwind v4 · Vite 8 · **Recharts** (not visx) · TanStack Query · **react-router-dom** (URL state).
 - **Backend**: FastAPI + **DuckDB** (reads the Parquet, falls back to CSV).
-- **Quick start**: the scripts now live in `pipeline/`; run from that folder (see `README.md`).
+- **Quick start**: orchestrated from the repo root via pnpm (`pnpm dev`); the pipeline scripts live in `pipeline/` and also run as a `--profile data` compose service (see §11 and `AGENTS.md`).
 - **Fix**: `build_dataset.py` reads `WID_API_KEY_B64` (not `WID_API_KEY`) to stay consistent with `netfetch.py` and §8.

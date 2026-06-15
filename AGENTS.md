@@ -8,9 +8,11 @@ defers to the docs below for substance.
 
 A webapp that explores and compares harmonized **wealth-concentration** series
 for France since 2000, across three public sources (WID, INSEE, DGFiP) whose
-measurement **Conventions are not interchangeable**. Today it is a structure-only
-scaffold: the Python pipeline is real code; the backend and frontend are typed
-stubs with `TODO(jalon N)` markers.
+measurement **Conventions are not interchangeable**. The read path works end to
+end on a curated/fixture dataset: the Python pipeline, the backend `/api/meta` +
+`/api/series`, and the frontend dashboard are real (jalons 2–4). The comparison,
+révisions, sources/methodology and export surfaces are still typed stubs with
+`TODO(jalon N)` markers — see the jalon roadmap in HANDOFF.md §9.
 
 **Read these before changing anything — do not duplicate their content here:**
 
@@ -128,11 +130,14 @@ Things the code won't tell you, that have already bitten this project:
   into `x-api-key` **without re-encoding**. Re-encoding breaks auth. It is a public
   key that may rotate / be rate-limited → cache server-side, never call WID per
   user request. (HANDOFF.md §8)
-- **Network was never tested against live servers** (restricted dev network). The
-  pipeline was validated only on simulated responses and falls back to a local
-  file. **jalon 3 must begin with a real WID/DGFiP integration test.** (HANDOFF.md §10)
+- **Live network: WID validated, DGFiP not yet.** As of 2026-06 the **WID** API
+  runs live in prod (real `WID 2026` Millésime). **DGFiP** still loads curated
+  points / a local CSV — its live `.xlsx` parser and the auth-failure fallback are
+  **jalon 6.5** (pending). INSEE is curated by design. (HANDOFF.md §10)
 - **Parquet preferred, CSV fallback.** The backend reads Parquet if present, else
-  the cumulative CSV. The Parquet output is still TODO (**jalon 2**).
+  the cumulative CSV. The Parquet output now ships (**jalon 2** done); both files
+  are gitignored — in production the data lives in a Coolify-managed `dataset`
+  volume (`docker-compose.production.yml`), refreshed via a Coolify Scheduled Task.
 - **Stubs are intentional.** `raise NotImplementedError` / `TODO(jalon N)` are not
   bugs. Resolve N against HANDOFF.md §9 *before* implementing; don't "fix" a stub
   blind.

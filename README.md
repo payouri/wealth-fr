@@ -6,10 +6,15 @@ Explore, visualize and compare harmonized wealth-concentration series for France
 interchangeable**. See [HANDOFF.md](./HANDOFF.md) for the full product brief and
 [CONTEXT.md](./CONTEXT.md) for the domain glossary.
 
-> **Status:** structure-only scaffold. Manifests are valid (`pip install` /
-> `pnpm install` work), but module bodies are stubs with `TODO` markers tied to
-> the milestones (jalons) in [HANDOFF.md §9](./HANDOFF.md#9-scaffolding-tasks-proposed-jalons).
-> Nothing serves real data yet.
+> **Status:** the read path works end to end on a curated/fixture dataset.
+> **Done:** pipeline Parquet output (jalon 2), backend `/api/meta` + `/api/series`
+> (jalon 3), frontend routing + URL state + dashboard (jalon 4). **Pending:**
+> comparison, révisions, live integration, refresh, methodology, export — see the
+> jalon roadmap in [HANDOFF.md §9](./HANDOFF.md#9-jalon-roadmap) and epic
+> [#2](https://github.com/payouri/wealth-fr/issues/2). Endpoints `/api/compare`,
+> `/api/revisions`, `/api/sources`, `/api/export.csv` and the Comparison / Sources
+> views are still `TODO(jalon N)` stubs. **No real (live-fetched) Millésime exists
+> yet** — that is jalon 6.5.
 
 ## Layout
 
@@ -21,13 +26,13 @@ wealth-fr/
 │   ├── build_dataset.py   netfetch.py   Dockerfile
 │   ├── data/        # raw sources: WID_data_FR.csv, dgfip_isf_ifi.csv
 │   └── out/         # generated CSV / Parquet / XLSX  (gitignored)
-├── backend/         # FastAPI + DuckDB  (stubs)
+├── backend/         # FastAPI + DuckDB  (meta + series live; compare/revisions/sources stubbed)
 │   ├── app/         # main.py · data.py · models.py
 │   └── Dockerfile
-├── frontend/        # React + TS + Tailwind v4 + Vite 8 + Recharts  (stubs)
-│   ├── src/         # api/ · components/ · views/
+├── frontend/        # React + TS + Tailwind v4 + Vite 8 + Recharts (Dashboard live; Comparison/Sources stubbed)
+│   ├── src/         # api/ · components/ · hooks/ · lib/ · views/
 │   └── Dockerfile   nginx.conf   # multi-stage build → nginx static + /api proxy
-├── .github/workflows/refresh-data.yml   # scheduled millésime refresh (stub)
+├── .github/workflows/   # ci.yml · security.yml · refresh-data.yml (jalon-7 stub)
 ├── CONTEXT.md       # domain glossary (the data contract in words)
 └── docs/adr/        # architecture decision records
 ```
@@ -68,7 +73,7 @@ Why the pipeline is off the startup path: see
 
 ## Quick start (per component)
 
-### Pipeline (the only part that runs today)
+### Pipeline
 ```bash
 cd pipeline
 pip install -r requirements.txt
@@ -76,22 +81,24 @@ pip install -r requirements.txt
 python build_dataset.py --download --full
 # Option B — local file, no key: drop data/WID_data_FR.csv, then:
 python build_dataset.py --annee-min 2000
-# Output: dataset_concentration_patrimoine_fr.csv (+ dated .xlsx)
+# Output: dataset_concentration_patrimoine_fr.csv + .parquet (+ dated .xlsx)
 ```
-> ⚠️ Pipeline network calls were tested only against simulated responses, never
-> the live servers (restricted dev network — [HANDOFF.md §10](./HANDOFF.md#10-risks--open-questions)).
-> Jalon 3 must begin with a real WID/DGFiP integration test. A **Parquet** output
-> (jalon 2) is still TODO — the backend prefers Parquet and falls back to the CSV.
+> ⚠️ As of 2026-06 the **WID** API has been run **live in production** (a real
+> `WID 2026` Millésime, ~157k observations). **DGFiP** still loads curated points /
+> a local CSV — its live `.xlsx` parser is **jalon 6.5** (pending), along with
+> explicit auth-failure fallback ([HANDOFF.md §10](./HANDOFF.md#10-risks--open-questions)).
+> The **Parquet** output (jalon 2) is written — the backend prefers Parquet, falls
+> back to CSV.
 
-### Backend (stub)
+### Backend (meta + series live; compare/revisions/sources stubbed)
 ```bash
 cd backend
 pip install -r requirements-dev.txt  # runtime + pytest/ruff/mypy (use requirements.txt for runtime only)
-uvicorn app.main:app --reload        # /api/health works; data routes are TODO
-pytest                                # health test passes; contract tests skipped
+uvicorn app.main:app --reload        # /api/health, /api/meta, /api/series work; compare/revisions/sources are TODO
+pytest                                # contract tests for the live endpoints pass; stubbed-endpoint tests stay skipped
 ```
 
-### Frontend (stub)
+### Frontend (Dashboard live; Comparison/Sources stubbed)
 ```bash
 cd frontend
 pnpm install
@@ -112,9 +119,10 @@ pnpm dev                              # http://localhost:5173, proxies /api -> :
 
 ## API contract
 
-See [HANDOFF.md §6.4](./HANDOFF.md#64-api-contract-proposal) and
-[`backend/app/models.py`](./backend/app/models.py): `/api/meta`, `/api/series`,
-`/api/compare`, `/api/revisions`, `/api/sources`, `/api/export.csv`.
+See [HANDOFF.md §6.4](./HANDOFF.md#64-api-contract) and
+[`backend/app/models.py`](./backend/app/models.py): `/api/meta`, `/api/series`
+(live); `/api/compare`, `/api/revisions`, `/api/sources`, `/api/export.csv` (stubbed,
+see the per-jalon status in §6.4).
 
 ## Documents
 
