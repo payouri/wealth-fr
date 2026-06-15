@@ -102,6 +102,34 @@ export function indicateurMeta(ind: string): IndicateurMeta {
   return INDICATEUR_META[ind] ?? { label: ind, isShare: false, isLevel: false, axis: "" };
 }
 
+type Availability = Record<string, Record<string, string[]>>;
+
+/** Snap an (indicateur, groupe) pair to one the source actually measures
+ *  (`meta.availability`). Sources measure disjoint figures, so switching source —
+ *  or landing on a hand-typed URL — can leave an indicateur/groupe the new source
+ *  never measured, which silently empties the chart. Keep the current pick when
+ *  it is valid; otherwise fall back to the source's first available indicateur and
+ *  (for non-share indicateurs) its first groupe. Share indicateurs overlay all
+ *  fractions, so their groupe is a focus that may stay empty ("" = no focus). */
+export function validComboForSource(
+  availability: Availability | undefined,
+  source: string,
+  indicateur: string,
+  groupe: string,
+): { indicateur: string; groupe: string } {
+  const byIndicateur = availability?.[source] ?? {};
+  const indicateurs = Object.keys(byIndicateur);
+  const ind = indicateurs.includes(indicateur) ? indicateur : (indicateurs[0] ?? indicateur);
+  const groupes = byIndicateur[ind] ?? [];
+  if (indicateurMeta(ind).isShare) {
+    return { indicateur: ind, groupe: groupe && groupes.includes(groupe) ? groupe : "" };
+  }
+  return {
+    indicateur: ind,
+    groupe: groupe && groupes.includes(groupe) ? groupe : (groupes[0] ?? ""),
+  };
+}
+
 // --- value formatting (fr-FR, tabular-friendly) --------------------------------
 
 const nf = (max: number, min = 0) =>

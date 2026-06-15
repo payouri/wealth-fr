@@ -86,6 +86,23 @@ def _distinct(con: duckdb.DuckDBPyConnection, relation: str, column: str) -> lis
     return [str(r[0]) for r in rows]
 
 
+def _availability(con: duckdb.DuckDBPyConnection, relation: str) -> dict[str, dict[str, list[str]]]:
+    """Per-source `{indicateur: [groupes…]}` map of what each Source actually
+    measures. The global `indicateurs`/`groupes` lists are a union across sources
+    — but the Sources measure disjoint things (WID shares vs DGFiP IFI déciles),
+    so the UI must only offer a Source the indicateurs/groupes it owns. Driving
+    the filters off this map keeps the reader from asking a Source for a figure it
+    never measured (Convention guard rail; CONTEXT.md)."""
+    rows = con.execute(
+        f"SELECT DISTINCT source, indicateur, groupe FROM {relation} "
+        "ORDER BY source, indicateur, groupe"
+    ).fetchall()
+    out: dict[str, dict[str, list[str]]] = {}
+    for source, indicateur, groupe in rows:
+        out.setdefault(str(source), {}).setdefault(str(indicateur), []).append(str(groupe))
+    return out
+
+
 def build_meta(con: duckdb.DuckDBPyConnection, relation: str) -> Meta:
     """Distinct dimension values + global `annee_min`/`annee_max` (HANDOFF §6.4)."""
     bounds = con.execute(f"SELECT min(annee), max(annee) FROM {relation}").fetchone()
@@ -97,6 +114,7 @@ def build_meta(con: duckdb.DuckDBPyConnection, relation: str) -> Meta:
         concepts=_distinct(con, relation, "concept_patrimoine"),
         unites=_distinct(con, relation, "unite"),
         millesimes=_distinct(con, relation, "millesime_source"),
+        availability=_availability(con, relation),
         annee_min=int(annee_min),
         annee_max=int(annee_max),
     )

@@ -19,6 +19,10 @@ export interface Meta {
   concepts: Concept[];
   unites: Unite[];
   millesimes: string[];
+  /** Per-source `{indicateur: [groupes…]}`: what each source actually measures.
+   *  The lists above are a union across sources; this map drives the filters so
+   *  a source is only ever offered the figures it owns. */
+  availability: Record<string, Record<string, string[]>>;
   annee_min: number;
   annee_max: number;
 }

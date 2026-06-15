@@ -24,7 +24,9 @@ const DEFAULTS: DashboardParams = {
   euros: false,
 };
 
-export function useDashboardParams(): [DashboardParams, (patch: Partial<DashboardParams>) => void] {
+export type UpdateParams = (patch: Partial<DashboardParams>, opts?: { replace?: boolean }) => void;
+
+export function useDashboardParams(): [DashboardParams, UpdateParams] {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const params = useMemo<DashboardParams>(
@@ -38,8 +40,8 @@ export function useDashboardParams(): [DashboardParams, (patch: Partial<Dashboar
     [searchParams],
   );
 
-  const update = useCallback(
-    (patch: Partial<DashboardParams>) => {
+  const update = useCallback<UpdateParams>(
+    (patch, opts) => {
       const next = { ...params, ...patch };
       // A Convention from one source is meaningless for another — drop it when
       // the source changes so we never carry a stale concept across sources.
@@ -57,7 +59,7 @@ export function useDashboardParams(): [DashboardParams, (patch: Partial<Dashboar
           }
           return sp;
         },
-        { replace: false },
+        { replace: opts?.replace ?? false },
       );
     },
     [params, setSearchParams],

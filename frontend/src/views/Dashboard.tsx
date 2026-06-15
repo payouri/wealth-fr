@@ -26,6 +26,7 @@ import {
   SHARE_GROUPES,
   SOURCE_ENCODING,
   SOURCE_LABEL,
+  validComboForSource,
 } from "@/lib/domain";
 import { exportStem } from "@/lib/exportChart";
 
@@ -152,6 +153,22 @@ export default function Dashboard() {
   });
   const meta = metaQ.data;
 
+  // Guard hand-typed / deep-linked URLs (and any stale state): if the current
+  // (indicateur, groupe) is one this source never measures, snap to a valid combo
+  // so a curve always appears. `replace` keeps the back button honest.
+  useEffect(() => {
+    if (!meta) return;
+    const fixed = validComboForSource(
+      meta.availability,
+      params.source,
+      params.indicateur,
+      params.groupe,
+    );
+    if (fixed.indicateur !== params.indicateur || fixed.groupe !== params.groupe) {
+      update(fixed, { replace: true });
+    }
+  }, [meta, params.source, params.indicateur, params.groupe, update]);
+
   const indMeta = indicateurMeta(params.indicateur);
   const isShare = indMeta.isShare;
   const eurosInert = !indMeta.isLevel;
@@ -160,7 +177,11 @@ export default function Dashboard() {
   const anneeMax = meta?.annee_max ?? 2024;
   const conceptParam = params.concept || undefined;
 
-  const activeGroupe = isShare ? "" : params.groupe || meta?.groupes[0] || "ensemble";
+  // A source measures only some (indicateur, groupe) combos; the non-share fallback
+  // must come from this source's groupes, not the global union (else it lands on a
+  // groupe the source never measured and the chart goes silently empty).
+  const sourceGroupes = meta?.availability?.[params.source]?.[params.indicateur] ?? [];
+  const activeGroupe = isShare ? "" : params.groupe || sourceGroupes[0] || "";
   const primaryGroupes = isShare ? [...SHARE_GROUPES] : activeGroupe ? [activeGroupe] : [];
 
   const primaryQueries = useQueries({

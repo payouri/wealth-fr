@@ -17,6 +17,7 @@ import {
   SOURCE_CONVENTION,
   SOURCE_LABEL,
   UNITE_LABEL,
+  validComboForSource,
 } from "@/lib/domain";
 
 interface FilterBarProps {
@@ -60,6 +61,12 @@ export default function FilterBar({
 }: FilterBarProps) {
   const meta_ind = indicateurMeta(params.indicateur);
   const isShare = meta_ind.isShare;
+  // What the selected source actually measures — the filters offer only these, so
+  // the reader can never ask a source for a figure it never measured.
+  const byIndicateur = meta.availability?.[params.source] ?? {};
+  const sourceIndicateurs = Object.keys(byIndicateur);
+  const sourceGroupes = byIndicateur[params.indicateur] ?? [];
+  const shareFocus = SHARE_GROUPES.filter((g) => sourceGroupes.includes(g));
   const uniteText = resolved?.unite
     ? (UNITE_LABEL[resolved.unite] ?? resolved.unite)
     : "dérivée de la source";
@@ -80,7 +87,13 @@ export default function FilterBar({
           <ToggleGroup
             type="single"
             value={params.source}
-            onValueChange={(v) => v && update({ source: v })}
+            onValueChange={(v) =>
+              v &&
+              update({
+                source: v,
+                ...validComboForSource(meta.availability, v, params.indicateur, params.groupe),
+              })
+            }
             aria-labelledby="f-source"
           >
             {meta.sources.map((s) => (
@@ -103,13 +116,19 @@ export default function FilterBar({
           <Field label="Indicateur" htmlFor="f-indicateur">
             <Select
               value={params.indicateur}
-              onValueChange={(v) => update({ indicateur: v, groupe: "" })}
+              onValueChange={(v) =>
+                update(
+                  // Snap the groupe to one this (source, indicateur) measures —
+                  // a share indicateur overlays all fractions ("" = no focus).
+                  validComboForSource(meta.availability, params.source, v, params.groupe),
+                )
+              }
             >
               <SelectTrigger className="w-52" aria-labelledby="f-indicateur">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {meta.indicateurs.map((ind) => (
+                {sourceIndicateurs.map((ind) => (
                   <SelectItem key={ind} value={ind}>
                     {indicateurMeta(ind).label}
                   </SelectItem>
@@ -129,7 +148,7 @@ export default function FilterBar({
                 <ToggleGroupItem value="" aria-label="Toutes les parts">
                   Tout
                 </ToggleGroupItem>
-                {SHARE_GROUPES.map((g) => (
+                {shareFocus.map((g) => (
                   <ToggleGroupItem key={g} value={g}>
                     {groupeLabel(g)}
                   </ToggleGroupItem>
@@ -139,14 +158,14 @@ export default function FilterBar({
           ) : (
             <Field label="Groupe" htmlFor="f-groupe">
               <Select
-                value={params.groupe || meta.groupes[0]}
+                value={params.groupe || sourceGroupes[0]}
                 onValueChange={(v) => update({ groupe: v })}
               >
                 <SelectTrigger className="w-48" aria-labelledby="f-groupe">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {meta.groupes.map((g) => (
+                  {sourceGroupes.map((g) => (
                     <SelectItem key={g} value={g}>
                       {groupeLabel(g)}
                     </SelectItem>

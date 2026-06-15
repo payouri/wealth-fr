@@ -23,6 +23,10 @@ class Meta(BaseModel):
     concepts: list[str]  # concept_patrimoine
     unites: list[str]
     millesimes: list[str]
+    # Per-source `{indicateur: [groupes…]}`: what each Source actually measures.
+    # The lists above are a union across sources; this map lets the UI offer a
+    # Source only the figures it owns (WID shares vs DGFiP IFI déciles never mix).
+    availability: dict[str, dict[str, list[str]]]
     annee_min: int
     annee_max: int
 
