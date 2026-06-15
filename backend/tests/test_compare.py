@@ -1,0 +1,50 @@
+"""Comparison — one indicateur/groupe fanned across Sources (jalon 5, ADR 0003).
+
+Each Source resolves through the *same* jalon-3 resolver, so each line keeps its
+own Convention; Sources are overlaid, never merged. The 422 ambiguity contract
+is inherited from the resolver unchanged.
+"""
+
+from fastapi.testclient import TestClient
+
+from app.data import resolve_compare
+from app.main import app
+
+client = TestClient(app)
+
+
+def test_returns_one_series_per_source_each_keeping_its_convention(con, relation):
+    series = resolve_compare(
+        con,
+        relation,
+        indicateur="part_patrimoine",
+        groupe="top1",
+        sources=["WID", "INSEE"],
+    )
+    by_source = {str(s.query["source"]): s for s in series}
+    assert set(by_source) == {"WID", "INSEE"}
+    # Each Source keeps its own (unité, concept) — never collapsed into one.
+    assert (by_source["WID"].unite, by_source["WID"].concept_patrimoine) == ("adulte", "net")
+    assert (by_source["INSEE"].unite, by_source["INSEE"].concept_patrimoine) == ("menage", "brut")
+
+
+def test_endpoint_overlays_sources_with_distinct_conventions():
+    body = client.get(
+        "/api/compare",
+        params={"indicateur": "part_patrimoine", "groupe": "top1", "sources": "WID,INSEE"},
+    ).json()
+    assert len(body) == 2
+    conventions = {(s["unite"], s["concept_patrimoine"]) for s in body}
+    assert conventions == {("adulte", "net"), ("menage", "brut")}
+
+
+def test_ambiguous_source_returns_422_with_choices():
+    # DGFiP spans two Concepts across the 2018 Rupture; with no concept pinned the
+    # resolver is ambiguous, and compare must surface the same 422 contract.
+    res = client.get(
+        "/api/compare",
+        params={"indicateur": "impot_moyen", "groupe": "redevables", "sources": "DGFiP"},
+    )
+    assert res.status_code == 422
+    choices = res.json()["detail"]["choices"]
+    assert {c["concept_patrimoine"] for c in choices} == {"total", "immobilier"}

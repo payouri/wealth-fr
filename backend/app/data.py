@@ -4,10 +4,12 @@ DuckDB reads the Parquet output of the pipeline natively, which suits the
 filter/group queries behind /api/series and /api/revisions. Falls back to the
 cumulative CSV if Parquet is absent.
 
-Holds the four deep, isolation-testable modules of jalon 3: the dataset source
-resolver (`_source_relation`), the Ruptures lookup (`ruptures_in`), the Meta
-builder (`build_meta`), and the Series resolver (`resolve_series`). `/api/revisions`
-(`get_revisions`) is still a stub (jalon 6).
+Holds the deep, isolation-testable modules: the dataset source resolver
+(`_source_relation`), the Ruptures lookup (`ruptures_in`), the Meta builder
+(`build_meta`), and the query resolver (`_resolve_query`) shared by the Series
+view (`resolve_series`), the cross-source comparison (`resolve_compare`, jalon 5)
+and the tidy-rows export (`resolve_rows`, jalon 9). Révisions (`resolve_revisions`,
+jalon 6) and the static Source metadata (`SOURCE_INFO`, jalon 8) live here too.
 """
 
 from __future__ import annotations
@@ -15,10 +17,11 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
+from typing import NamedTuple
 
 import duckdb
 
-from .models import Meta, Point, Rupture, Series
+from .models import Meta, Point, RevisionDiff, Rupture, Series, SourceInfo
 
 PARQUET = Path(
     os.environ.get("DATASET_PARQUET", "pipeline/out/dataset_concentration_patrimoine_fr.parquet")
@@ -116,27 +119,54 @@ class AmbiguousConvention(Exception):
         super().__init__(f"Ambiguous Convention; choose one of {choices}")
 
 
-def resolve_series(
+# Tidy schema columns, in order — the export surface and the canonical row shape
+# (HANDOFF §3). Kept here so a single list defines what /api/export.csv streams.
+EXPORT_COLUMNS = [
+    "annee",
+    "source",
+    "concept_patrimoine",
+    "unite",
+    "groupe",
+    "indicateur",
+    "valeur",
+    "unite_valeur",
+    "euros_constants",
+    "date_extraction",
+    "millesime_source",
+    "notes",
+]
+
+
+class _Resolved(NamedTuple):
+    """The outcome of resolving a query: the Convention-pinned, single-Millésime
+    selection shared by `resolve_series` (points view) and `resolve_rows` (tidy
+    rows view), so the guard-rail logic lives in exactly one place."""
+
+    where: str
+    params: list[object]
+    unite: str | None
+    concept: str
+    millesime: str
+    ruptures: list[Rupture]
+
+
+def _resolve_query(
     con: duckdb.DuckDBPyConnection,
     relation: str,
     *,
     source: str,
     indicateur: str,
     groupe: str,
-    concept: str | None = None,
-    unite: str | None = None,
-    annee_min: int = 2000,
-    annee_max: int | None = None,
-    euros_constants: bool = False,
-    millesime: str | None = None,
-) -> Series:
-    """Resolve one Convention-pinned, single-Millésime series (ADR 0002).
-
-    (a) derives `unite` from `source`, (b) guards the Convention — raises
-    `AmbiguousConvention` if more than one Concept still matches, (c) selects the
-    latest `date_extraction` Millésime (or the pinned `millesime`), yielding one
-    value per year.
-    """
+    concept: str | None,
+    unite: str | None,
+    annee_min: int,
+    annee_max: int | None,
+    euros_constants: bool,
+    millesime: str | None,
+) -> _Resolved:
+    """(a) derive `unite` from `source`, (b) guard the Convention (raise
+    `AmbiguousConvention` if >1 Concept still matches), (c) pick the Millésime
+    (pinned, else latest by `date_extraction`). The one resolution path (ADR 0002)."""
     unite = UNITE_BY_SOURCE.get(source, unite)
     hi = annee_max if annee_max is not None else 9999
 
@@ -165,6 +195,65 @@ def resolve_series(
 
     resolved_concept = concept if concept is not None else (concepts[0] if concepts else "")
 
+    # Pick the Millésime: the pinned one, else the latest by `date_extraction`.
+    if millesime is None:
+        row = con.execute(
+            f"SELECT millesime_source FROM {relation} WHERE {where} "
+            "ORDER BY date_extraction DESC, millesime_source DESC LIMIT 1",
+            params,
+        ).fetchone()
+        millesime = str(row[0]) if row else ""
+
+    return _Resolved(
+        where=where,
+        params=params,
+        unite=unite,
+        concept=resolved_concept,
+        millesime=millesime,
+        ruptures=ruptures_in(source, annee_min, annee_max),
+    )
+
+
+def resolve_series(
+    con: duckdb.DuckDBPyConnection,
+    relation: str,
+    *,
+    source: str,
+    indicateur: str,
+    groupe: str,
+    concept: str | None = None,
+    unite: str | None = None,
+    annee_min: int = 2000,
+    annee_max: int | None = None,
+    euros_constants: bool = False,
+    millesime: str | None = None,
+) -> Series:
+    """Resolve one Convention-pinned, single-Millésime series (ADR 0002).
+
+    Delegates the Convention guard and Millésime pick to `_resolve_query`, then
+    projects the selection to one value per year.
+    """
+    r = _resolve_query(
+        con,
+        relation,
+        source=source,
+        indicateur=indicateur,
+        groupe=groupe,
+        concept=concept,
+        unite=unite,
+        annee_min=annee_min,
+        annee_max=annee_max,
+        euros_constants=euros_constants,
+        millesime=millesime,
+    )
+    where, params, unite, resolved_concept, millesime = (
+        r.where,
+        r.params,
+        r.unite,
+        r.concept,
+        r.millesime,
+    )
+
     query = {
         "source": source,
         "indicateur": indicateur,
@@ -176,16 +265,7 @@ def resolve_series(
         "euros_constants": euros_constants,
         "millesime": millesime,
     }
-    ruptures = ruptures_in(source, annee_min, annee_max)
-
-    # Pick the Millésime: the pinned one, else the latest by `date_extraction`.
-    if millesime is None:
-        row = con.execute(
-            f"SELECT millesime_source FROM {relation} WHERE {where} "
-            "ORDER BY date_extraction DESC, millesime_source DESC LIMIT 1",
-            params,
-        ).fetchone()
-        millesime = str(row[0]) if row else ""
+    ruptures = r.ruptures
 
     point_rows = con.execute(
         f"SELECT annee, valeur FROM {relation} WHERE {where} AND millesime_source = ? "
@@ -217,6 +297,159 @@ def get_series(**filters) -> Series:
     return resolve_series(con, _source_relation(con), **filters)
 
 
-def get_revisions() -> list[dict]:
+def resolve_rows(
+    con: duckdb.DuckDBPyConnection,
+    relation: str,
+    *,
+    source: str,
+    indicateur: str,
+    groupe: str,
+    concept: str | None = None,
+    unite: str | None = None,
+    annee_min: int = 2000,
+    annee_max: int | None = None,
+    euros_constants: bool = False,
+    millesime: str | None = None,
+) -> list[dict]:
+    """The tidy rows the resolver selects (jalon 9 export), not a points view.
+
+    Shares `_resolve_query` with `resolve_series` — same Convention guard, same
+    single-Millésime pick — and projects the full tidy schema (`EXPORT_COLUMNS`),
+    so the exported CSV is exactly what the chart was drawn from, Convention and
+    all.
+    """
+    r = _resolve_query(
+        con,
+        relation,
+        source=source,
+        indicateur=indicateur,
+        groupe=groupe,
+        concept=concept,
+        unite=unite,
+        annee_min=annee_min,
+        annee_max=annee_max,
+        euros_constants=euros_constants,
+        millesime=millesime,
+    )
+    cols = ", ".join(EXPORT_COLUMNS)
+    rows = con.execute(
+        f"SELECT {cols} FROM {relation} WHERE {r.where} AND millesime_source = ? ORDER BY annee",
+        [*r.params, r.millesime],
+    ).fetchall()
+    return [dict(zip(EXPORT_COLUMNS, row, strict=True)) for row in rows]
+
+
+def get_export_rows(**filters) -> list[dict]:
+    con = connect()
+    return resolve_rows(con, _source_relation(con), **filters)
+
+
+def resolve_revisions(con: duckdb.DuckDBPyConnection, relation: str) -> list[RevisionDiff]:
+    """Observations the source revised: same HIST_KEYS tuple, >1 millésime, and a
+    value that actually changed (append-only historisation; CONTEXT.md).
+
+    A tuple present in several millésimes with an *unchanged* value is not a
+    Révision — nothing was revised — so it is filtered out (the diff table is
+    "where did the source change a past number", not "which rows were re-pulled").
+    Both competing millésimes are kept, each with its own value and
+    `date_extraction`; neither is ever overwritten.
+    """
+    keys = ", ".join(HIST_KEYS)
+    rows = con.execute(
+        f"SELECT {keys}, millesime_source, valeur, date_extraction FROM {relation} "
+        f"WHERE ({keys}) IN ("
+        f"  SELECT {keys} FROM {relation} GROUP BY {keys} "
+        "   HAVING count(DISTINCT millesime_source) > 1 AND count(DISTINCT valeur) > 1"
+        f") ORDER BY {keys}, date_extraction"
+    ).fetchall()
+
+    out: dict[tuple, RevisionDiff] = {}
+    for r in rows:
+        annee, source, concept, unite, groupe, indicateur = r[:6]
+        millesime, valeur, date_extraction = r[6], r[7], r[8]
+        key = (int(annee), source, concept, unite, groupe, indicateur)
+        diff = out.get(key)
+        if diff is None:
+            diff = RevisionDiff(
+                annee=int(annee),
+                source=str(source),
+                concept_patrimoine=str(concept),
+                unite=str(unite),
+                groupe=str(groupe),
+                indicateur=str(indicateur),
+                valeurs=[],
+            )
+            out[key] = diff
+        diff.valeurs.append(
+            {
+                "millesime_source": str(millesime),
+                "valeur": float(valeur),
+                "date_extraction": str(date_extraction) if date_extraction is not None else "",
+            }
+        )
+    return list(out.values())
+
+
+# Provenance + licence/attribution per Source (HANDOFF §7). Static metadata —
+# the methodology page renders it so reuse terms stay in sync with the data.
+SOURCE_INFO: list[SourceInfo] = [
+    SourceInfo(
+        source="WID",
+        url="https://wid.world",
+        convention="adultes · patrimoine net",
+        licence="Citation requise (vérifier les conditions de réutilisation en vigueur)",
+        attribution="WID.world — Garbinti, Goupille-Lebret, Piketty",
+    ),
+    SourceInfo(
+        source="INSEE",
+        url="https://www.insee.fr",
+        convention="ménages · patrimoine brut",
+        licence="Licence Ouverte / Open Licence (Etalab) — à vérifier par jeu de données",
+        attribution="INSEE — enquêtes Patrimoine / Histoire de vie et patrimoine (HVP)",
+    ),
+    SourceInfo(
+        source="DGFiP",
+        url="https://www.impots.gouv.fr",
+        convention="foyers fiscaux · ISF (≤2017) / IFI (≥2018)",
+        licence="Licence Ouverte / Open Licence (Etalab) — data.gouv.fr",
+        attribution="DGFiP — Statistiques ISF/IFI (impots.gouv.fr, data.gouv.fr)",
+    ),
+]
+
+
+def get_sources() -> list[SourceInfo]:
+    return SOURCE_INFO
+
+
+def resolve_compare(
+    con: duckdb.DuckDBPyConnection,
+    relation: str,
+    *,
+    indicateur: str,
+    groupe: str,
+    sources: list[str],
+) -> list[Series]:
+    """One Series per Source for the same indicateur/groupe (jalon 5, ADR 0003).
+
+    Each Source goes through `resolve_series`, so its Convention is auto-derived
+    and preserved — Sources are overlaid, never merged. Any Source still spanning
+    more than one Convention raises `AmbiguousConvention`, surfacing the same 422
+    contract as `/api/series`; no parallel resolution logic.
+    """
+    return [
+        resolve_series(con, relation, source=source, indicateur=indicateur, groupe=groupe)
+        for source in sources
+    ]
+
+
+def get_compare(indicateur: str, groupe: str, sources: list[str]) -> list[Series]:
+    con = connect()
+    return resolve_compare(
+        con, _source_relation(con), indicateur=indicateur, groupe=groupe, sources=sources
+    )
+
+
+def get_revisions() -> list[RevisionDiff]:
     """Observations sharing a HIST_KEYS tuple across >1 millésime_source."""
-    raise NotImplementedError
+    con = connect()
+    return resolve_revisions(con, _source_relation(con))

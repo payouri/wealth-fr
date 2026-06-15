@@ -8,6 +8,8 @@ annee,source,concept_patrimoine,unite,groupe,indicateur,valeur,unite_valeur,euro
 2021,WID,net,adulte,top1,patrimoine_moyen,950000.0,euros_constants_2021,true,2026-06-12,WID 2026,deflated base 2021
 2015,INSEE,brut,menage,ensemble,gini,0.65,indice,false,2021-09-01,INSEE 2021,INSEE HVP 2015
 2015,INSEE,brut,menage,top10,part_patrimoine,50.0,%,false,2021-09-01,INSEE 2021,INSEE HVP 2015
+2015,INSEE,brut,menage,top1,part_patrimoine,24.0,%,false,2021-09-01,INSEE 2021,INSEE HVP 2015 — second source for top1 (cross-source comparison)
+2021,INSEE,brut,menage,top1,part_patrimoine,25.0,%,false,2021-09-01,INSEE 2021,INSEE HVP 2021 — second source for top1 (cross-source comparison)
 2017,DGFiP,total,foyer_fiscal,redevables,impot_moyen,5000.0,euros,false,2024-05-01,DGFiP 2024,DGFiP ISF 2017
 2018,DGFiP,immobilier,foyer_fiscal,redevables,impot_moyen,4000.0,euros,false,2024-05-01,DGFiP 2024,DGFiP IFI 2018 | RUPTURE ISF->IFI 2018
 2019,DGFiP,immobilier,foyer_fiscal,redevables,impot_moyen,4100.0,euros,false,2024-05-01,DGFiP 2024,DGFiP IFI 2019
