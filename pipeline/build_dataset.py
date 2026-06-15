@@ -58,6 +58,7 @@ import argparse
 import datetime as dt
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -554,25 +555,29 @@ def main(argv=None) -> int:
     else:
         wid = load_wid(args.wid, today, args.millesime_wid)
 
+    insee = load_insee(today, args.millesime_insee)
+
     # --- DGFiP : télécharge le LOT de fichiers IFI/ISF (jalon 6.5) puis parse ---
     # Il n'y a pas d'URL unique : on tire le registre `DGFIP_SOURCE_URLS` (3 liens
-    # `/node/` IFI par défaut) dans le dossier data, puis `load_dgfip` parse tout
-    # le dossier par contenu. Échec réseau OU parsing -> repli sur le CSV curé /
+    # `/node/` IFI par défaut) dans un dossier TEMPORAIRE — le `data/` de l'image
+    # n'est pas inscriptible en prod (conteneur non-root) ; seul le volume `out/`
+    # l'est. Les sources sont éphémères : `load_dgfip` matérialise le DataFrame,
+    # puis le temp est purgé. Échec réseau OU parsing -> repli sur le CSV curé /
     # les points pré-remplis (HANDOFF §10).
-    fiscal_path = args.fiscal
     if args.download and netfetch is not None:
-        data_dir = args.fiscal if args.fiscal.is_dir() else args.fiscal.parent
         urls = netfetch.dgfip_source_urls()
         if args.dgfip_url and args.dgfip_url not in urls:
             urls.append(args.dgfip_url)
-        written = netfetch.download_sources(urls, data_dir)
-        if written:
-            fiscal_path = data_dir  # parse tout le dossier (IFI + ISF + curé)
-            print(f"[DGFiP] {len(written)} fichier(s) téléchargé(s) dans {data_dir}.")
-        else:
-            print("[DGFiP] aucun fichier téléchargé. Repli sur fichier/points locaux.")
-    insee = load_insee(today, args.millesime_insee)
-    dgfip = load_dgfip(fiscal_path, today, args.millesime_dgfip)
+        with tempfile.TemporaryDirectory(prefix="dgfip_src_") as tmp:
+            written = netfetch.download_sources(urls, Path(tmp))
+            if written:
+                print(f"[DGFiP] {len(written)} fichier(s) téléchargé(s).")
+                dgfip = load_dgfip(Path(tmp), today, args.millesime_dgfip)
+            else:
+                print("[DGFiP] aucun fichier téléchargé. Repli sur fichier/points locaux.")
+                dgfip = load_dgfip(args.fiscal, today, args.millesime_dgfip)
+    else:
+        dgfip = load_dgfip(args.fiscal, today, args.millesime_dgfip)
 
     df = harmonize(wid, insee, dgfip, annee_min=args.annee_min)
     df = deflate_levels(df, base_year=args.base_deflation)
