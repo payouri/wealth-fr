@@ -19,9 +19,16 @@
 #
 #   docker compose -f docker-compose.production.yml --profile data run --rm pipeline --download --full
 #
-# (Run it from Coolify's terminal for this resource, or wire it as a Scheduled
-# Task to refresh the data periodically.) Until it runs, /api/health is up but
-# the data endpoints have nothing to serve.
+# (Run it from Coolify's terminal for this resource.) Until it runs, /api/health
+# is up but the data endpoints have nothing to serve.
+#
+# To refresh the data on a schedule, use Coolify's Scheduled Tasks — which
+# `docker exec` a command INSIDE a running container, not on the host, so they
+# can't drive `docker compose run`. The always-on `pipeline-runner` below exists
+# as that exec target. Point the Scheduled Task at it with:
+#
+#   Container name: pipeline-runner
+#   Command:        python build_dataset.py --download --full
 
 services:
   backend:
@@ -98,6 +105,32 @@ services:
     # Override on the command line for a real fetch, e.g. `... run --rm pipeline
     # --download --full`. Default keeps the same floor year as the dev compose.
     command: ["--annee-min", "2000"]
+
+  # Always-on twin of `pipeline`, kept alive (sleep infinity) purely so Coolify's
+  # Scheduled Tasks have a running container to `docker exec` the build into —
+  # Coolify can't run `docker compose run` itself (see header). No `profiles:`,
+  # so it IS started on deploy. It shares the pipeline image, secrets, and the
+  # `dataset` volume, so an exec'd build writes the same data the backend serves:
+  #
+  #   docker exec <pipeline-runner> python build_dataset.py --download --full
+  pipeline-runner:
+    build: ./pipeline
+    init: true
+    mem_limit: 2g
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      WID_API_KEY_B64: ${WID_API_KEY_B64:-}
+      DGFIP_IFI_XLS_URL: ${DGFIP_IFI_XLS_URL:-}
+    volumes:
+      - dataset:/pipeline/out
+    # Idle: the real work runs via `docker exec`, not this command. Overriding the
+    # entrypoint (which is `python build_dataset.py`) is what keeps it from running
+    # the build on boot and exiting.
+    entrypoint: ["sleep", "infinity"]
+    restart: unless-stopped
 
 volumes:
   dataset:
