@@ -25,7 +25,12 @@ import requests
 WID_API_BASE = "https://rfap9nitz6.execute-api.eu-west-1.amazonaws.com/prod/"
 # Clé publique embarquée dans l'outil R officiel (sysdata.rda).
 # = base64 des 30 octets bruts ; l'API attend DIRECTEMENT cette chaîne en x-api-key.
-WID_API_KEY_B64 = os.environ.get("WID_API_KEY_B64", "rYFByOB0ioaPATwHtllMI71zLOZSK0Ic5veQonJP")
+WID_API_KEY_PUBLIC = "rYFByOB0ioaPATwHtllMI71zLOZSK0Ic5veQonJP"
+# `... or` (et non simple défaut de get) : une variable d'env PRÉSENTE MAIS VIDE
+# — ce que produit le compose prod `WID_API_KEY_B64: ${WID_API_KEY_B64:-}` quand le
+# secret Coolify n'est pas défini — ne doit pas écraser la clé publique embarquée.
+# Sinon x-api-key part vide -> 403 Forbidden et la source WID est silencieusement perdue.
+WID_API_KEY_B64 = os.environ.get("WID_API_KEY_B64", "") or WID_API_KEY_PUBLIC
 
 # Sixlets patrimoine -> indicateur tidy
 WID_SIXLETS = {
@@ -80,6 +85,7 @@ def fetch_wid(api_key_b64: str = WID_API_KEY_B64, areas="FR", codes=WID_FETCH_CO
     api_key_b64 : clé DÉJÀ encodée en base64 (cf. WID_API_KEY_B64). On ne la
     ré-encode pas : le serveur attend cette chaîne telle quelle dans x-api-key.
     """
+    api_key_b64 = api_key_b64 or WID_API_KEY_B64  # clé vide -> repli sur la clé publique
     if not api_key_b64:
         raise ValueError(
             "Clef API WID absente. Fournissez --wid-api-key / WID_API_KEY_B64, "
@@ -154,6 +160,7 @@ def fetch_wid_available(
     sixlet patrimoine en France. Renvoie la liste des codes complets
     {sixlet}_{percentile}_{age}_{pop} filtrés sur age/pop standard.
     """
+    api_key_b64 = api_key_b64 or WID_API_KEY_B64  # clé vide -> repli sur la clé publique
     var_q = ",".join(sixlets)
     url = f"{WID_API_BASE}countries-available-variables?countries={areas}&variables={var_q}"
     payload = _http_get(url, headers={"x-api-key": api_key_b64}, timeout=timeout).json()
