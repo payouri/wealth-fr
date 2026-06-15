@@ -11,12 +11,8 @@ import RevisionsTable from "@/components/RevisionsTable";
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="font-serif text-[1.5rem] leading-tight font-semibold tracking-[-0.005em] text-foreground">
-        {title}
-      </h2>
-      <div className="max-w-[68ch] space-y-3 text-[0.9375rem] leading-relaxed text-foreground/90">
-        {children}
-      </div>
+      <h2 className="font-serif text-headline font-semibold text-foreground">{title}</h2>
+      <div className="max-w-[68ch] space-y-3 text-body text-foreground/90">{children}</div>
     </section>
   );
 }
@@ -32,10 +28,10 @@ export default function SourcesMethodo() {
   return (
     <div className="space-y-12">
       <header className="max-w-[68ch] space-y-2">
-        <h1 className="font-serif text-[1.875rem] leading-tight font-semibold tracking-[-0.01em] text-foreground">
+        <h1 className="font-serif text-headline font-semibold text-foreground">
           Sources &amp; méthodologie
         </h1>
-        <p className="text-[0.9375rem] leading-relaxed text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           Trois sources publiques mesurent la concentration du patrimoine en France, chacune avec sa
           propre définition. Cette page explique ce que chaque chiffre signifie, pourquoi on ne les
           additionne pas, et d'où ils viennent.
@@ -114,13 +110,13 @@ export default function SourcesMethodo() {
           <dl className="divide-y divide-border rounded-lg border border-border">
             {(sourcesQ.data ?? []).map((s) => (
               <div key={s.source} className="grid gap-1 px-4 py-3.5 sm:grid-cols-[10rem_1fr]">
-                <dt className="font-serif text-[1.0625rem] font-semibold text-foreground">
+                <dt className="font-serif text-title font-semibold text-foreground">
                   {s.source}
-                  <span className="mt-0.5 block font-sans text-[0.8125rem] font-normal text-muted-foreground">
+                  <span className="mt-0.5 block font-sans text-label font-normal text-muted-foreground">
                     {s.convention}
                   </span>
                 </dt>
-                <dd className="space-y-1 text-[0.875rem] text-foreground/90">
+                <dd className="space-y-1 text-sm text-foreground/90">
                   <p>
                     <span className="text-muted-foreground">Attribution :</span> {s.attribution}
                   </p>
@@ -131,7 +127,7 @@ export default function SourcesMethodo() {
                     href={s.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+                    className="inline-flex items-center gap-1 rounded-sm text-accent-strong underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   >
                     {s.url.replace(/^https?:\/\//, "")}
                     <ExternalLink className="size-3.5" aria-hidden />

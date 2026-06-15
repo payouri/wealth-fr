@@ -42,10 +42,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span
-        id={htmlFor}
-        className="text-[0.8125rem] font-medium tracking-wide text-muted-foreground"
-      >
+      <span id={htmlFor} className="text-label font-medium text-muted-foreground">
         {label}
       </span>
       {children}
@@ -90,10 +87,10 @@ export default function FilterBar({
               <ToggleGroupItem
                 key={s}
                 value={s}
-                className="flex-col items-start gap-0 py-1.5 text-left"
+                className="flex-col items-start gap-0 py-1.5 text-left pointer-coarse:min-h-11"
               >
                 <span className="text-sm leading-tight font-semibold">{SOURCE_LABEL[s] ?? s}</span>
-                <span className="text-[0.6875rem] leading-tight font-normal text-muted-foreground">
+                <span className="text-label leading-tight font-normal text-muted-foreground">
                   {SOURCE_CONVENTION[s] ?? ""}
                 </span>
               </ToggleGroupItem>
@@ -205,7 +202,7 @@ export default function FilterBar({
             <span>{eurosInert ? "sans objet ici" : params.euros ? "constants" : "nominaux"}</span>
           </div>
           {eurosInert && (
-            <span className="text-[0.6875rem] text-muted-foreground">
+            <span className="text-label text-muted-foreground">
               déflation sur les niveaux (€) uniquement
             </span>
           )}

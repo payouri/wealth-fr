@@ -47,10 +47,7 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span
-        id={htmlFor}
-        className="text-[0.8125rem] font-medium tracking-wide text-muted-foreground"
-      >
+      <span id={htmlFor} className="text-label font-medium text-muted-foreground">
         {label}
       </span>
       {children}
@@ -164,10 +161,10 @@ export default function Comparison() {
   return (
     <div className="space-y-6">
       <header className="max-w-prose space-y-2">
-        <h1 className="font-serif text-[1.875rem] leading-tight font-semibold tracking-[-0.01em] text-foreground">
+        <h1 className="font-serif text-headline font-semibold text-foreground">
           Comparaison de sources
         </h1>
-        <p className="text-[0.9375rem] leading-relaxed text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           Superposez WID, INSEE et DGFiP pour un même indicateur. Chaque source mesure le patrimoine
           selon sa propre Convention : les courbes sont comparées côte à côte, jamais fusionnées en
           une seule série.
@@ -182,7 +179,10 @@ export default function Comparison() {
         <div className="flex flex-wrap items-start gap-x-8 gap-y-5">
           <Field label="Indicateur" htmlFor="c-indicateur">
             <Select value={params.indicateur} onValueChange={(v) => update({ indicateur: v })}>
-              <SelectTrigger className="w-52" aria-labelledby="c-indicateur">
+              <SelectTrigger
+                className="w-52 pointer-coarse:min-h-11"
+                aria-labelledby="c-indicateur"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -201,7 +201,7 @@ export default function Comparison() {
               onValueChange={(v) => update({ groupe: v })}
               disabled={isGini}
             >
-              <SelectTrigger className="w-48" aria-labelledby="c-groupe">
+              <SelectTrigger className="w-48 pointer-coarse:min-h-11" aria-labelledby="c-groupe">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -225,12 +225,12 @@ export default function Comparison() {
                 <ToggleGroupItem
                   key={s}
                   value={s}
-                  className="flex-col items-start gap-0 py-1.5 text-left"
+                  className="flex-col items-start gap-0 py-1.5 text-left pointer-coarse:min-h-11"
                 >
                   <span className="text-sm leading-tight font-semibold">
                     {SOURCE_LABEL[s] ?? s}
                   </span>
-                  <span className="text-[0.6875rem] leading-tight font-normal text-muted-foreground">
+                  <span className="text-label leading-tight font-normal text-muted-foreground">
                     {SOURCE_CONVENTION[s] ?? ""}
                   </span>
                 </ToggleGroupItem>
@@ -241,7 +241,7 @@ export default function Comparison() {
       </section>
 
       {/* The guard-rail banner: shapes are comparable, levels are not (ADR 0003). */}
-      <div className="flex items-start gap-2.5 rounded-md border border-border bg-secondary px-4 py-3 text-[0.875rem] text-foreground">
+      <div className="flex items-start gap-2.5 rounded-md border border-border bg-secondary px-4 py-3 text-sm text-foreground">
         <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
         <p className="leading-relaxed">
           <span className="font-semibold">Formes comparables, niveaux non comparables.</span> On

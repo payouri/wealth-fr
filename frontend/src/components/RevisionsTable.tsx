@@ -38,7 +38,7 @@ export default function RevisionsTable({ revisions }: { revisions: RevisionDiff[
           Observations révisées : valeur d'un millésime à l'autre, dates d'extraction comprises.
         </caption>
         <thead>
-          <tr className="border-b border-border text-left text-[0.8125rem] text-muted-foreground">
+          <tr className="border-b border-border text-left text-label text-muted-foreground">
             <th scope="col" className="py-2 pr-4 font-medium">
               Observation
             </th>
@@ -67,20 +67,20 @@ export default function RevisionsTable({ revisions }: { revisions: RevisionDiff[
                   <p className="font-medium text-foreground">
                     {rev.annee} · {indicateurMeta(rev.indicateur).label}
                   </p>
-                  <p className="text-[0.8125rem] text-muted-foreground">
+                  <p className="text-label text-muted-foreground">
                     {conventionLabel(rev.source, rev.unite, rev.concept_patrimoine)} ·{" "}
                     {groupeLabel(rev.groupe)}
                   </p>
                 </td>
                 <td className="py-3 pr-4">
                   <p className="font-semibold text-foreground">{fmt(diff.from.valeur)}</p>
-                  <p className="text-[0.8125rem] text-muted-foreground">
+                  <p className="text-label text-muted-foreground">
                     {diff.from.millesime_source} · {fmtDate(diff.from.date_extraction)}
                   </p>
                 </td>
                 <td className="py-3 pr-4">
                   <p className="font-semibold text-foreground">{fmt(diff.to.valeur)}</p>
-                  <p className="text-[0.8125rem] text-muted-foreground">
+                  <p className="text-label text-muted-foreground">
                     {diff.to.millesime_source} · {fmtDate(diff.to.date_extraction)}
                   </p>
                 </td>

@@ -24,7 +24,15 @@ export function downloadUrl(url: string, filename: string): void {
 // The chart inherits its fonts from the page; a serialised SVG loses that CSS, so
 // pin the family explicitly before rasterising.
 const FONT_STACK = "'Source Sans 3', system-ui, sans-serif";
-const PAPER = "#fbf9f4"; // warm-paper fallback for the exported background
+const PAPER_FALLBACK = "#fbf9f4"; // warm-paper fallback if the token can't be read
+
+/** The live --background token, so exports track the paper colour instead of a
+ *  frozen hex. Falls back to the literal when there's no DOM (tests) or read fails. */
+function paperColor(): string {
+  if (typeof window === "undefined") return PAPER_FALLBACK;
+  const v = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
+  return v || PAPER_FALLBACK;
+}
 
 /** Rasterise the first <svg> inside `container` to a PNG and download it. */
 export async function exportChartPng(
@@ -62,7 +70,7 @@ export async function exportChartPng(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D context unavailable.");
   ctx.scale(scale, scale);
-  ctx.fillStyle = PAPER;
+  ctx.fillStyle = paperColor();
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(image, 0, 0, width, height);
 

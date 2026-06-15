@@ -37,19 +37,25 @@ export default function ExportButtons({ targetRef, stem, csvUrl }: ExportButtons
   return (
     <div className="flex items-center gap-2">
       {csvUrl && (
-        <Button asChild variant="secondary" size="sm">
+        <Button asChild variant="secondary" size="sm" className="pointer-coarse:min-h-11">
           <a href={csvUrl} download={`${stem}.csv`}>
             <FileDown aria-hidden />
             CSV
           </a>
         </Button>
       )}
-      <Button variant="secondary" size="sm" onClick={onPng} disabled={busy}>
+      <Button
+        variant="secondary"
+        size="sm"
+        className="pointer-coarse:min-h-11"
+        onClick={onPng}
+        disabled={busy}
+      >
         <ImageDown aria-hidden />
         {busy ? "Export…" : "PNG"}
       </Button>
       {failed && (
-        <span role="alert" className="text-[0.8125rem] text-destructive">
+        <span role="alert" className="text-label text-destructive">
           Export impossible
         </span>
       )}

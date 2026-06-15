@@ -24,16 +24,14 @@ export function FigureFrame({
     <figure className="rounded-lg border border-border bg-background">
       <figcaption className="flex items-start justify-between gap-4 border-b border-border px-5 pt-4 pb-3">
         <div className="min-w-0">
-          <h2 className="font-serif text-[1.375rem] leading-tight font-semibold text-foreground">
-            {title}
-          </h2>
+          <h2 className="font-serif text-headline font-semibold text-foreground">{title}</h2>
           {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
         </div>
         {actions && <div className="shrink-0 pt-0.5">{actions}</div>}
       </figcaption>
       <div className="px-3 py-4 sm:px-4">{children}</div>
       {footer && (
-        <div className="border-t border-border px-5 py-2.5 text-[0.8125rem] text-muted-foreground">
+        <div className="border-t border-border px-5 py-2.5 text-label text-muted-foreground">
           {footer}
         </div>
       )}

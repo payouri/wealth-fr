@@ -10,6 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import type { Point, Rupture } from "@/api/types";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { formatTick, formatValue } from "@/lib/domain";
 
@@ -74,6 +75,9 @@ export default function SeriesChart({
   height = 320,
 }: SeriesChartProps) {
   const reducedMotion = usePrefersReducedMotion();
+  // Below 640px the fixed right-margin for end-of-line labels would swallow the
+  // plot, so it shrinks (the labels in use — "WID.world", "Top 0,1 %" — still fit).
+  const narrow = useMediaQuery("(max-width: 640px)");
   const data = mergeByYear(series);
   // Last defined index per series — where its direct label is drawn.
   const lastIndex = new Map<string, number>();
@@ -88,153 +92,183 @@ export default function SeriesChart({
 
   const tnum = { fontFeatureSettings: '"tnum" 1' } as const;
   // Chrome tokens are static (light-only product) — resolve once, not per render.
-  const { ink, hairline, ruptureColor } = useMemo(
+  const { ink, foreground, hairline, ruptureColor } = useMemo(
     () => ({
       ink: resolveColor("var(--color-muted-foreground)"),
+      foreground: resolveColor("var(--color-foreground)"),
       hairline: resolveColor("var(--color-border)"),
       ruptureColor: resolveColor("var(--color-rupture)"),
     }),
     [],
   );
 
+  // Resolve each series' token colour once per data change, not per tooltip frame
+  // (the tooltip re-renders on every mouse move).
+  const colorByKey = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of series) m.set(s.key, resolveColor(s.color));
+    return m;
+  }, [series]);
+
+  // Accessible name: charts must be reachable without seeing the plot
+  // (PRODUCT.md a11y; the CSV export is the tabular alternative).
+  const ariaLabel = [
+    `Graphique linéaire : ${axisLabel}.`,
+    series.length > 0 ? `Séries : ${series.map((s) => s.label).join(", ")}.` : "",
+    `Période ${anneeMin} à ${anneeMax}.`,
+    ruptures.length > 0 ? `Ruptures : ${ruptures.map((r) => r.label).join(", ")}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 16, right: 124, bottom: 8, left: 8 }}>
-        <CartesianGrid stroke={hairline} strokeOpacity={0.7} vertical={false} />
-        <XAxis
-          dataKey="annee"
-          type="number"
-          domain={[anneeMin, anneeMax]}
-          allowDecimals={false}
-          tickCount={Math.min(7, anneeMax - anneeMin + 1)}
-          tick={{ fill: ink, fontSize: 12, style: tnum }}
-          tickLine={{ stroke: hairline }}
-          axisLine={{ stroke: hairline }}
-          tickMargin={8}
-        />
-        <YAxis
-          // Honest origin: the value axis is never truncated (Principle 5).
-          domain={uniteValeur === "indice" ? [0, 1] : [0, "auto"]}
-          tickFormatter={(v: number) => formatTick(v, uniteValeur)}
-          tick={{ fill: ink, fontSize: 12, style: tnum }}
-          tickLine={false}
-          axisLine={false}
-          width={52}
-          label={{
-            value: axisLabel,
-            angle: -90,
-            position: "insideLeft",
-            style: {
-              fill: ink,
-              fontSize: 12,
-              fontWeight: 500,
-              textAnchor: "middle",
-            },
-          }}
-        />
-        <Tooltip
-          isAnimationActive={false}
-          cursor={{ stroke: hairline, strokeWidth: 1 }}
-          content={({ active, payload, label }) => {
-            if (!active || !payload?.length) return null;
-            return (
-              <div className="rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-[0_8px_24px_oklch(0.26_0.015_72/0.12)]">
-                <p className="mb-1 font-semibold text-foreground" style={tnum}>
-                  {label}
-                </p>
-                <ul className="space-y-0.5">
-                  {payload.map((entry) => {
-                    const s = series.find((x) => x.key === entry.dataKey);
-                    return (
-                      <li
-                        key={String(entry.dataKey)}
-                        className="flex items-center justify-between gap-4"
-                      >
-                        <span className="flex items-center gap-1.5 text-muted-foreground">
-                          <span
-                            aria-hidden
-                            className="inline-block h-0.5 w-3.5 rounded-full"
-                            style={{
-                              backgroundColor: resolveColor(s?.color ?? String(entry.color)),
-                            }}
-                          />
-                          {s?.label ?? String(entry.dataKey)}
-                        </span>
-                        <span className="font-medium text-foreground" style={tnum}>
-                          {formatValue(Number(entry.value), uniteValeur)}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            );
-          }}
-        />
-        {ruptures.map((r) => (
-          <ReferenceLine
-            key={`${r.annee}-${r.label}`}
-            x={r.annee}
-            // Calm amber, never alarm-red: a methodological seam, not a warning.
-            stroke={ruptureColor}
-            strokeDasharray="5 4"
-            strokeWidth={1.5}
+    <div role="img" aria-label={ariaLabel}>
+      <ResponsiveContainer width="100%" height={height}>
+        <LineChart
+          accessibilityLayer
+          data={data}
+          margin={{ top: 16, right: narrow ? 76 : 124, bottom: 8, left: 8 }}
+        >
+          <CartesianGrid stroke={hairline} strokeOpacity={0.7} vertical={false} />
+          <XAxis
+            dataKey="annee"
+            type="number"
+            domain={[anneeMin, anneeMax]}
+            allowDecimals={false}
+            tickCount={Math.min(narrow ? 4 : 7, anneeMax - anneeMin + 1)}
+            tick={{ fill: ink, fontSize: 12, style: tnum }}
+            tickLine={{ stroke: hairline }}
+            axisLine={{ stroke: hairline }}
+            tickMargin={8}
+          />
+          <YAxis
+            // Honest origin: the value axis is never truncated (Principle 5).
+            domain={uniteValeur === "indice" ? [0, 1] : [0, "auto"]}
+            tickFormatter={(v: number) => formatTick(v, uniteValeur)}
+            tick={{ fill: ink, fontSize: 12, style: tnum }}
+            tickLine={false}
+            axisLine={false}
+            width={52}
             label={{
-              value: r.label,
-              position: "insideTopRight",
-              fill: ruptureColor,
-              fontSize: 11,
-              fontWeight: 600,
+              value: axisLabel,
+              angle: -90,
+              position: "insideLeft",
+              style: {
+                fill: ink,
+                fontSize: 12,
+                fontWeight: 500,
+                textAnchor: "middle",
+              },
             }}
           />
-        ))}
-        {series.map((s) => {
-          const last = lastIndex.get(s.key);
-          const opacity = s.dimmed ? 0.32 : 1;
-          const color = resolveColor(s.color);
-          return (
-            <Line
-              key={s.key}
-              dataKey={s.key}
-              type="monotone"
-              stroke={color}
-              strokeWidth={s.emphasized ? 3 : 2}
-              strokeDasharray={s.dash === "0" ? undefined : s.dash}
-              strokeOpacity={opacity}
-              // Sparse survey series (1–2 points) would be invisible as a line:
-              // show the observations as dots so they remain legible.
-              dot={s.points.length <= 2 ? { r: 3, fill: color, strokeWidth: 0 } : false}
-              activeDot={{ r: 4, strokeWidth: 0 }}
-              connectNulls={false}
-              isAnimationActive={!reducedMotion}
-              animationDuration={reducedMotion ? 0 : 600}
-              label={(props: LabelPointProps) => {
-                const { index } = props;
-                const x = Number(props.x);
-                const y = Number(props.y);
-                if (index !== last || Number.isNaN(x) || Number.isNaN(y)) {
-                  return <g key={`${s.key}-${index}`} />;
-                }
-                return (
-                  <text
-                    key={`${s.key}-label`}
-                    x={x + 8}
-                    y={y}
-                    dy={4}
-                    fill={color}
-                    fillOpacity={opacity}
-                    fontSize={12}
-                    fontWeight={s.emphasized ? 700 : 600}
-                    style={tnum}
-                  >
-                    {s.label}
-                  </text>
-                );
+          <Tooltip
+            isAnimationActive={false}
+            cursor={{ stroke: hairline, strokeWidth: 1 }}
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+              return (
+                <div className="rounded-md border border-border bg-popover px-3 py-2 text-sm shadow-[0_8px_24px_oklch(0.26_0.015_72/0.12)]">
+                  <p className="mb-1 font-semibold text-foreground" style={tnum}>
+                    {label}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {payload.map((entry) => {
+                      const s = series.find((x) => x.key === entry.dataKey);
+                      return (
+                        <li
+                          key={String(entry.dataKey)}
+                          className="flex items-center justify-between gap-4"
+                        >
+                          <span className="flex items-center gap-1.5 text-muted-foreground">
+                            <span
+                              aria-hidden
+                              className="inline-block h-0.5 w-3.5 rounded-full"
+                              style={{
+                                backgroundColor:
+                                  colorByKey.get(String(entry.dataKey)) ??
+                                  resolveColor(s?.color ?? String(entry.color)),
+                              }}
+                            />
+                            {s?.label ?? String(entry.dataKey)}
+                          </span>
+                          <span className="font-medium text-foreground" style={tnum}>
+                            {formatValue(Number(entry.value), uniteValeur)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            }}
+          />
+          {ruptures.map((r) => (
+            <ReferenceLine
+              key={`${r.annee}-${r.label}`}
+              x={r.annee}
+              // Calm amber, never alarm-red: a methodological seam, not a warning.
+              stroke={ruptureColor}
+              strokeDasharray="5 4"
+              strokeWidth={1.5}
+              label={{
+                value: r.label,
+                position: "insideTopRight",
+                // Ink, not amber: the amber line carries the meaning; the label must
+                // be readable (amber-on-paper fails AA). The seam stays calm.
+                fill: foreground,
+                fontSize: 11,
+                fontWeight: 600,
               }}
             />
-          );
-        })}
-      </LineChart>
-    </ResponsiveContainer>
+          ))}
+          {series.map((s) => {
+            const last = lastIndex.get(s.key);
+            const opacity = s.dimmed ? 0.32 : 1;
+            const color = colorByKey.get(s.key) ?? resolveColor(s.color);
+            return (
+              <Line
+                key={s.key}
+                dataKey={s.key}
+                type="monotone"
+                stroke={color}
+                strokeWidth={s.emphasized ? 3 : 2}
+                strokeDasharray={s.dash === "0" ? undefined : s.dash}
+                strokeOpacity={opacity}
+                // Sparse survey series (1–2 points) would be invisible as a line:
+                // show the observations as dots so they remain legible.
+                dot={s.points.length <= 2 ? { r: 3, fill: color, strokeWidth: 0 } : false}
+                activeDot={{ r: 4, strokeWidth: 0 }}
+                connectNulls={false}
+                isAnimationActive={!reducedMotion}
+                animationDuration={reducedMotion ? 0 : 600}
+                label={(props: LabelPointProps) => {
+                  const { index } = props;
+                  const x = Number(props.x);
+                  const y = Number(props.y);
+                  if (index !== last || Number.isNaN(x) || Number.isNaN(y)) {
+                    return <g key={`${s.key}-${index}`} />;
+                  }
+                  return (
+                    <text
+                      key={`${s.key}-label`}
+                      x={x + 8}
+                      y={y}
+                      dy={4}
+                      fill={color}
+                      fillOpacity={opacity}
+                      fontSize={12}
+                      fontWeight={s.emphasized ? 700 : 600}
+                      style={tnum}
+                    >
+                      {s.label}
+                    </text>
+                  );
+                }}
+              />
+            );
+          })}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
