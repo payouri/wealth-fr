@@ -17,8 +17,17 @@ The producer of an Observation — `WID`, `INSEE`, or `DGFiP`.
 _Avoid_: provider, origin
 
 **Concept de patrimoine** (`concept_patrimoine`):
-Which wealth is measured — `net`, `brut`, `total` (ISF), or `immobilier` (IFI).
+Which wealth is measured — `net`, `brut`, `total` (ISF), or `immobilier` (IFI),
+plus the *hors reste* variants `brut_hors_reste` and `net_hors_reste` (INSEE).
+A new Concept is a new Convention: never compared across.
 _Avoid_: wealth type, asset class
+
+**Reste / hors reste**:
+INSEE's residual asset category (durables, valuables, miscellaneous holdings).
+A *hors reste* Concept (`brut_hors_reste`, `net_hors_reste`) excludes it; it is a
+**different quantity** from the all-inclusive `brut`/`net`, hence a different
+Convention — INSEE's headline published Gini (0.639→0.662) is in fact *brut hors reste*.
+_Avoid_: residual, other assets
 
 **Unité statistique** (`unité`):
 The entity the value is counted over — `adulte`, `menage`, or `foyer_fiscal`.
