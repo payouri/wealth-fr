@@ -1,0 +1,103 @@
+# Production stack — deployed via Coolify (https://coolify.io).
+#
+# Differs from docker-compose.yml (local production-style) in three ways that
+# Coolify requires or rewards:
+#
+#   1. No host port bindings. Coolify's own reverse proxy (Traefik/Caddy)
+#      terminates TLS and routes to the container over the Docker network. We
+#      only `expose` ports and let Coolify map a domain to the frontend via the
+#      SERVICE_FQDN_* magic variable below — publishing `127.0.0.1:8080:8080`
+#      here would fight Coolify's proxy.
+#   2. The dataset lives in a persistent named volume, not a repo bind mount.
+#      A git deploy ships an empty pipeline/out/ (the artifacts are gitignored),
+#      so the backend reads a `dataset` volume that the one-off pipeline fills.
+#   3. The pipeline writes that same volume (see ownership note in pipeline/
+#      Dockerfile) instead of a host bind mount, so no host-UID dance is needed.
+#
+# Deploy: point Coolify at this file (Docker Compose build pack). After the first
+# deploy, fill the dataset volume once:
+#
+#   docker compose -f docker-compose.production.yml --profile data run --rm pipeline --download --full
+#
+# (Run it from Coolify's terminal for this resource, or wire it as a Scheduled
+# Task to refresh the data periodically.) Until it runs, /api/health is up but
+# the data endpoints have nothing to serve.
+
+services:
+  backend:
+    build: ./backend
+    environment:
+      DATASET_PARQUET: /data/dataset_concentration_patrimoine_fr.parquet
+      DATASET_CSV: /data/dataset_concentration_patrimoine_fr.csv
+    volumes:
+      # Read the harmonized dataset the pipeline produced; read-only.
+      - dataset:/data:ro
+    expose:
+      - "8000"
+    restart: unless-stopped
+    # duckdb/pandas/pyarrow over the full dataset can spike; bound it.
+    mem_limit: 2g
+    # Hardening: drop all caps, block privilege escalation, read-only rootfs with
+    # a writable /tmp for any duckdb spill files.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # No SERVICE_FQDN_* here: the backend is never public. Only the frontend
+    # nginx reaches it (as http://backend:8000) over the compose network, and
+    # proxies /api/* to it — same-origin, so the SPA needs no CORS or API URL.
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      # Coolify substitutes this with a generated (or UI-assigned) HTTPS domain
+      # and configures its proxy to route that domain to this container's :8080.
+      # Set a custom domain for the value in Coolify's UI if you have one.
+      - SERVICE_FQDN_FRONTEND_8080
+    expose:
+      - "8080"
+    restart: unless-stopped
+    # Hardening: read-only rootfs; nginx-unprivileged writes its pid/temp under
+    # /tmp and caches under /var/cache/nginx, so back those with tmpfs.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  # On-demand dataset generation. `data` profile keeps it OFF the deploy path
+  # (Coolify won't start profiled services), so it stays a one-off job that
+  # writes the shared `dataset` volume the backend serves. See ADR 0001.
+  pipeline:
+    build: ./pipeline
+    profiles: ["data"]
+    init: true
+    mem_limit: 2g
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      # Provided via Coolify env vars (Secrets). WID key is base64 already and is
+      # sent verbatim as x-api-key — do NOT re-encode it.
+      WID_API_KEY_B64: ${WID_API_KEY_B64:-}
+      DGFIP_IFI_XLS_URL: ${DGFIP_IFI_XLS_URL:-}
+    volumes:
+      - dataset:/pipeline/out
+    # Override on the command line for a real fetch, e.g. `... run --rm pipeline
+    # --download --full`. Default keeps the same floor year as the dev compose.
+    command: ["--annee-min", "2000"]
+
+volumes:
+  dataset:

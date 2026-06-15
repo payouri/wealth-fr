@@ -19,6 +19,13 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY . .
 
+# Own the output dir as the runtime user so a fresh Docker *named* volume mounted
+# here (the production path — see docker-compose.production.yml) initializes as
+# pipeline:pipeline instead of root, letting the non-root process write to it.
+# out/ is .dockerignored, so create it here. Harmless for the dev bind-mount
+# path, where compose overrides `user:` anyway.
+RUN mkdir -p /pipeline/out && chown -R pipeline:pipeline /pipeline/out
+
 USER pipeline
 
 ENTRYPOINT ["python", "build_dataset.py"]

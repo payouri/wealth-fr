@@ -33,5 +33,9 @@ COPY --from=build /app/frontend/dist /usr/share/nginx/html
 
 EXPOSE 8080
 
+# Use 127.0.0.1, not localhost: the read-only rootfs skips nginx's
+# 10-listen-on-ipv6-by-default.sh entrypoint script (it can't edit the conf), so
+# nginx binds IPv4 only. busybox wget would try localhost -> ::1 first and get a
+# connection refused, marking the container permanently unhealthy.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://localhost:8080/ >/dev/null 2>&1 || exit 1
+  CMD wget -qO- http://127.0.0.1:8080/ >/dev/null 2>&1 || exit 1
