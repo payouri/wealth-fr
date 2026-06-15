@@ -17,6 +17,7 @@ DGFiP: téléchargement direct du fichier Excel publié (aucune clef requise).
 from __future__ import annotations
 
 import os
+import re
 import time
 from pathlib import Path
 
@@ -60,8 +61,70 @@ WID_FETCH_CODES = [
 ]
 
 # DGFiP : page de réf. https://www.impots.gouv.fr/impot-sur-la-fortune-immobiliere-ifi
-# (URL du .xls "répartition nationale" — à confirmer/mettre à jour, varie par millésime)
-DGFIP_IFI_XLS_URL = os.environ.get("DGFIP_IFI_XLS_URL", "")
+# Il n'existe PAS d'URL unique : l'IFI nationale est publiée en TROIS fichiers
+# (même population, trois découpages) sous des liens `/node/<id>` stables qui
+# redirigent vers le .xls du millésime courant. On télécharge le lot ; le parseur
+# (`dgfip_parse`) reconnaît chaque découpage par sa structure.
+DGFIP_SOURCE_URLS_DEFAULT = [
+    "https://www.impots.gouv.fr/node/25582",  # IFI — déciles de patrimoine net taxable
+    "https://www.impots.gouv.fr/node/25583",  # IFI — déciles de RFR des redevables
+    "https://www.impots.gouv.fr/node/25584",  # IFI — tranches de taux marginal
+]
+
+
+def dgfip_source_urls() -> list[str]:
+    """Registry of DGFiP source URLs, env-overridable.
+
+    `DGFIP_SOURCE_URLS` (comma/whitespace-separated) replaces the default list;
+    `DGFIP_IFI_XLS_URL` (legacy single URL) is appended if set, for back-compat.
+    """
+    raw = os.environ.get("DGFIP_SOURCE_URLS", "")
+    urls = [u.strip() for u in re.split(r"[,\s]+", raw) if u.strip()] or list(
+        DGFIP_SOURCE_URLS_DEFAULT
+    )
+    legacy = os.environ.get("DGFIP_IFI_XLS_URL", "").strip()
+    if legacy and legacy not in urls:
+        urls.append(legacy)
+    return urls
+
+
+def _dest_filename(url: str, resp: requests.Response, fallback_stem: str) -> str:
+    """Filename for a downloaded source: Content-Disposition, else URL path.
+
+    DGFiP `/node/<id>` URLs carry no filename in the path, so prefer the server's
+    Content-Disposition; otherwise derive a stable name from the node id.
+    """
+    cd = resp.headers.get("content-disposition", "")
+    if (m := re.search(r"filename\*?=(?:UTF-8'')?\"?([^\";]+)", cd)) is not None:
+        name = m.group(1).strip()
+        if name:
+            return name
+    tail = url.rstrip("/").split("/")[-1].split("?")[0]
+    if tail and Path(tail).suffix.lower() in (".xls", ".xlsx", ".csv", ".zip"):
+        return tail
+    return f"{fallback_stem}.xls"
+
+
+def download_sources(urls: list[str], dest_dir: Path, timeout=120) -> list[Path]:
+    """Download every DGFiP source URL into `dest_dir`; return the written paths.
+
+    Individual failures are reported and skipped (the loader falls back to the
+    curated CSV / pre-filled points when nothing parses — HANDOFF §10).
+    """
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for i, url in enumerate(urls):
+        try:
+            r = _http_get(url, timeout=timeout, stream=True)
+            dest = dest_dir / _dest_filename(url, r, f"dgfip_source_{i}")
+            with open(dest, "wb") as f:
+                for chunk in r.iter_content(chunk_size=65536):
+                    f.write(chunk)
+            written.append(dest)
+            print(f"[DGFiP] téléchargé : {url} -> {dest.name}")
+        except Exception as e:  # noqa: BLE001 — on log et on continue
+            print(f"[DGFiP] échec téléchargement {url} ({e}). Source ignorée.")
+    return written
 
 
 def _http_get(url, headers=None, timeout=30, retries=3, stream=False):

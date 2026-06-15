@@ -99,6 +99,7 @@ services:
       # Provided via Coolify env vars (Secrets). WID key is base64 already and is
       # sent verbatim as x-api-key — do NOT re-encode it.
       WID_API_KEY_B64: ${WID_API_KEY_B64:-}
+      DGFIP_SOURCE_URLS: ${DGFIP_SOURCE_URLS:-}
       DGFIP_IFI_XLS_URL: ${DGFIP_IFI_XLS_URL:-}
     volumes:
       - dataset:/pipeline/out
@@ -123,6 +124,7 @@ services:
       - no-new-privileges:true
     environment:
       WID_API_KEY_B64: ${WID_API_KEY_B64:-}
+      DGFIP_SOURCE_URLS: ${DGFIP_SOURCE_URLS:-}
       DGFIP_IFI_XLS_URL: ${DGFIP_IFI_XLS_URL:-}
     volumes:
       - dataset:/pipeline/out

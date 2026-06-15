@@ -10,6 +10,7 @@ pipeline/out/*.csv
 pipeline/out/*.xlsx
 pipeline/out/*.parquet
 pipeline/data/*.csv
+pipeline/data/*.xls
 pipeline/data/*.xlsx
 !pipeline/**/.gitkeep
 

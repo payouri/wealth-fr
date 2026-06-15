@@ -42,7 +42,10 @@ Sortie
 - dataset_concentration_patrimoine_fr.parquet  (cumulatif, chemin rapide du backend)
 - dataset_concentration_patrimoine_fr_<timestamp>.xlsx  (snapshot de l'extraction)
 
-Dépendances : pandas, openpyxl.
+DGFiP : les workbooks ISF/IFI réels sont parsés par `dgfip_parse` (jalon 6.5) ;
+à défaut, repli sur un CSV curé puis sur les points pré-remplis DGFIP_POINTS.
+
+Dépendances : pandas, openpyxl, xlrd (lecture des .xls hérités).
 Usage :
     python build_dataset.py
     python build_dataset.py --wid data/WID_data_FR.csv --millesime-wid "WID 2024"
@@ -63,6 +66,11 @@ try:
     import netfetch
 except ImportError:
     netfetch = None  # type: ignore[assignment]  # téléchargement réseau indisponible
+
+try:
+    import dgfip_parse
+except ImportError:
+    dgfip_parse = None  # type: ignore[assignment]  # parseur Excel DGFiP indisponible
 
 # ---------------------------------------------------------------------------
 # CONFIGURATION
@@ -267,46 +275,78 @@ def load_insee(extraction_date: str, millesime: str) -> pd.DataFrame:
     return df
 
 
+def _parse_dgfip_excels(path: Path) -> list[dict]:
+    """Parse real DGFiP workbook(s) at `path` into tidy rows (jalon 6.5).
+
+    `path` may be a single workbook or a directory (every recognised `.xls`/
+    `.xlsx` in it is parsed; commune-level files are ignored by the parser).
+    Dispatch is by workbook *content* (not file extension), so a download saved
+    under any name still parses. Returns [] when nothing parses.
+    """
+    if dgfip_parse is None:
+        return []
+    rows: list[dict] = []
+    if path.is_dir():
+        files = sorted(path.glob("*.xls")) + sorted(path.glob("*.xlsx"))
+    elif path.exists():
+        files = [path]
+    else:
+        files = []
+    for f in files:
+        rows.extend(dgfip_parse.parse_dgfip_excel(f))
+    return rows
+
+
 def load_dgfip(path: Path, extraction_date: str, millesime: str) -> pd.DataFrame:
     """Charge les données fiscales ISF/IFI.
 
-    Si un CSV externe est fourni (data/dgfip_isf_ifi.csv), il prime ; sinon on
-    utilise les points pré-remplis DGFIP_POINTS. Format CSV attendu :
+    Priorité : (1) workbook(s) Excel DGFiP réels — `path` étant un fichier ou un
+    dossier (jalon 6.5) ; (2) sinon un CSV externe curé ; (3) sinon les points
+    pré-remplis DGFIP_POINTS (repli, cf. HANDOFF §10). Format CSV attendu :
         annee,concept,groupe,indicateur,valeur,unite_valeur,note
     """
-    points: list[tuple] = DGFIP_POINTS
-    if path.exists():
-        ext = pd.read_csv(path, dtype=str)
-        ext.columns = [c.strip().lower() for c in ext.columns]
-        points = [
-            (
-                int(r["annee"]),
-                r["concept"],
-                r["groupe"],
-                r["indicateur"],
-                float(r["valeur"]),
-                r["unite_valeur"],
-                r.get("note", ""),
-            )
-            for _, r in ext.iterrows()
+    rows = _parse_dgfip_excels(path)
+    if rows:
+        for r in rows:  # annoter la rupture de série là où elle s'applique
+            if r["annee"] == 2018:
+                r["notes"] = f"{r['notes']} | RUPTURE ISF->IFI 2018"
+        print(f"[DGFiP] {len(rows)} observations parsées depuis Excel ({path}).")
+    else:
+        points: list[tuple] = DGFIP_POINTS
+        if path.is_file() and path.suffix.lower() == ".csv" and path.exists():
+            ext = pd.read_csv(path, dtype=str)
+            ext.columns = [c.strip().lower() for c in ext.columns]
+            points = [
+                (
+                    int(r["annee"]),
+                    r["concept"],
+                    r["groupe"],
+                    r["indicateur"],
+                    float(r["valeur"]),
+                    r["unite_valeur"],
+                    r.get("note", ""),
+                )
+                for _, r in ext.iterrows()
+            ]
+            print(f"[DGFiP] CSV externe lu : {path}")
+        else:
+            print("[DGFiP] Aucun Excel/CSV exploitable -> points pré-remplis (repli).")
+        rows = [
+            {
+                "annee": a,
+                "source": "DGFiP",
+                "concept_patrimoine": concept,
+                "unite": "foyer_fiscal",
+                "groupe": g,
+                "indicateur": ind,
+                "valeur": v,
+                "unite_valeur": uv,
+                "euros_constants": False,
+                "notes": (note + (" | RUPTURE ISF->IFI 2018" if a == 2018 else "")),
+            }
+            for (a, concept, g, ind, v, uv, note) in points
         ]
-        print(f"[DGFiP] CSV externe lu : {path}")
 
-    rows = [
-        {
-            "annee": a,
-            "source": "DGFiP",
-            "concept_patrimoine": concept,
-            "unite": "foyer_fiscal",
-            "groupe": g,
-            "indicateur": ind,
-            "valeur": v,
-            "unite_valeur": uv,
-            "euros_constants": False,
-            "notes": (note + (" | RUPTURE ISF->IFI 2018" if a == 2018 else "")),
-        }
-        for (a, concept, g, ind, v, uv, note) in points
-    ]
     df = pd.DataFrame(_stamp(rows, extraction_date, millesime))
     print(
         f"[DGFiP] {len(df)} observations chargées ({millesime}). "
@@ -485,7 +525,11 @@ def main(argv=None) -> int:
         help="WID : récupère TOUS les percentiles patrimoine FR (équiv. fichier complet)",
     )
     p.add_argument("--wid-api-key", default=os.environ.get("WID_API_KEY_B64", ""))
-    p.add_argument("--dgfip-url", default=os.environ.get("DGFIP_IFI_XLS_URL", ""))
+    p.add_argument(
+        "--dgfip-url",
+        default=os.environ.get("DGFIP_IFI_XLS_URL", ""),
+        help="URL DGFiP supplémentaire (en plus du registre DGFIP_SOURCE_URLS)",
+    )
     p.add_argument(
         "--no-append",
         action="store_true",
@@ -510,15 +554,25 @@ def main(argv=None) -> int:
     else:
         wid = load_wid(args.wid, today, args.millesime_wid)
 
-    # --- DGFiP : télécharge l'Excel puis le loader le lira ---
-    if args.download and netfetch is not None and args.dgfip_url:
-        try:
-            netfetch.download_file(args.dgfip_url, args.fiscal)
-            print(f"[DGFiP] Excel téléchargé -> {args.fiscal}")
-        except Exception as e:
-            print(f"[DGFiP] téléchargement échoué ({e}). Points pré-remplis utilisés.")
+    # --- DGFiP : télécharge le LOT de fichiers IFI/ISF (jalon 6.5) puis parse ---
+    # Il n'y a pas d'URL unique : on tire le registre `DGFIP_SOURCE_URLS` (3 liens
+    # `/node/` IFI par défaut) dans le dossier data, puis `load_dgfip` parse tout
+    # le dossier par contenu. Échec réseau OU parsing -> repli sur le CSV curé /
+    # les points pré-remplis (HANDOFF §10).
+    fiscal_path = args.fiscal
+    if args.download and netfetch is not None:
+        data_dir = args.fiscal if args.fiscal.is_dir() else args.fiscal.parent
+        urls = netfetch.dgfip_source_urls()
+        if args.dgfip_url and args.dgfip_url not in urls:
+            urls.append(args.dgfip_url)
+        written = netfetch.download_sources(urls, data_dir)
+        if written:
+            fiscal_path = data_dir  # parse tout le dossier (IFI + ISF + curé)
+            print(f"[DGFiP] {len(written)} fichier(s) téléchargé(s) dans {data_dir}.")
+        else:
+            print("[DGFiP] aucun fichier téléchargé. Repli sur fichier/points locaux.")
     insee = load_insee(today, args.millesime_insee)
-    dgfip = load_dgfip(args.fiscal, today, args.millesime_dgfip)
+    dgfip = load_dgfip(fiscal_path, today, args.millesime_dgfip)
 
     df = harmonize(wid, insee, dgfip, annee_min=args.annee_min)
     df = deflate_levels(df, base_year=args.base_deflation)

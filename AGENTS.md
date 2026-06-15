@@ -130,10 +130,14 @@ Things the code won't tell you, that have already bitten this project:
   into `x-api-key` **without re-encoding**. Re-encoding breaks auth. It is a public
   key that may rotate / be rate-limited → cache server-side, never call WID per
   user request. (HANDOFF.md §8)
-- **Live network: WID validated, DGFiP not yet.** As of 2026-06 the **WID** API
-  runs live in prod (real `WID 2026` Millésime). **DGFiP** still loads curated
-  points / a local CSV — its live `.xlsx` parser and the auth-failure fallback are
-  **jalon 6.5** (pending). INSEE is curated by design. (HANDOFF.md §10)
+- **Live network: WID validated; DGFiP parser done, no single URL.** As of 2026-06
+  the **WID** API runs live in prod (real `WID 2026` Millésime). **DGFiP** parses
+  real ISF/IFI workbooks (`pipeline/dgfip_parse.py`, jalon 6.5) with a download/parse
+  → curated-CSV/points fallback. There is **no single IFI URL**: the 3 national
+  breakdowns live under stable `/node/` links, configured via the registry
+  `DGFIP_SOURCE_URLS` (`netfetch.dgfip_source_urls()`); only a live prod run of the
+  fetch is still pending (parser runs against locally-supplied files). INSEE is
+  curated by design. (HANDOFF.md §10)
 - **Parquet preferred, CSV fallback.** The backend reads Parquet if present, else
   the cumulative CSV. The Parquet output now ships (**jalon 2** done); both files
   are gitignored — in production the data lives in a Coolify-managed `dataset`
