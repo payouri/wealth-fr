@@ -6,15 +6,16 @@ Explore, visualize and compare harmonized wealth-concentration series for France
 interchangeable**. See [HANDOFF.md](./HANDOFF.md) for the full product brief and
 [CONTEXT.md](./CONTEXT.md) for the domain glossary.
 
-> **Status:** the read path works end to end on a curated/fixture dataset.
-> **Done:** pipeline Parquet output (jalon 2), backend `/api/meta` + `/api/series`
-> (jalon 3), frontend routing + URL state + dashboard (jalon 4). **Pending:**
-> comparison, révisions, live integration, refresh, methodology, export — see the
-> jalon roadmap in [HANDOFF.md §9](./HANDOFF.md#9-jalon-roadmap) and epic
-> [#2](https://github.com/payouri/wealth-fr/issues/2). Endpoints `/api/compare`,
-> `/api/revisions`, `/api/sources`, `/api/export.csv` and the Comparison / Sources
-> views are still `TODO(jalon N)` stubs. **No real (live-fetched) Millésime exists
-> yet** — that is jalon 6.5.
+> **Status:** the full reader-facing product is implemented (jalons 2–6, 8, 9).
+> **Done:** pipeline Parquet output (jalon 2); the backend endpoints `/api/meta`,
+> `/api/series`, `/api/compare`, `/api/revisions`, `/api/sources`, `/api/export.csv`
+> (jalons 3, 5, 6, 8, 9); the frontend Dashboard, Comparison and Sources &
+> méthodologie views with URL state and chart PNG export (jalons 4, 5, 8, 9). A real
+> `WID 2026` Millésime is live in production. **Open:** jalon 6.5's live prod DGFiP
+> fetch run, and the data-coverage backlog — see the jalon roadmap in
+> [HANDOFF.md §9](./HANDOFF.md#9-jalon-roadmap) and epic
+> [#2](https://github.com/payouri/wealth-fr/issues/2). Scheduled refresh (former
+> jalon 7) runs as a **Coolify Scheduled Task**, not a GitHub Action.
 
 ## Layout
 
@@ -26,10 +27,10 @@ wealth-fr/
 │   ├── build_dataset.py   netfetch.py   Dockerfile
 │   ├── data/        # raw sources: WID_data_FR.csv, dgfip_isf_ifi.csv
 │   └── out/         # generated CSV / Parquet / XLSX  (gitignored)
-├── backend/         # FastAPI + DuckDB  (meta + series live; compare/revisions/sources stubbed)
+├── backend/         # FastAPI + DuckDB  (meta · series · compare · revisions · sources · export.csv)
 │   ├── app/         # main.py · data.py · models.py
 │   └── Dockerfile
-├── frontend/        # React + TS + Tailwind v4 + Vite 8 + Recharts (Dashboard live; Comparison/Sources stubbed)
+├── frontend/        # React + TS + Tailwind v4 + Vite 8 + Recharts (Dashboard · Comparison · Sources & méthodologie)
 │   ├── src/         # api/ · components/ · hooks/ · lib/ · views/
 │   └── Dockerfile   nginx.conf   # multi-stage build → nginx static + /api proxy
 ├── .github/workflows/   # ci.yml · security.yml
@@ -93,15 +94,15 @@ python build_dataset.py --annee-min 2000
 > The **Parquet** output (jalon 2) is written — the backend prefers Parquet, falls
 > back to CSV.
 
-### Backend (meta + series live; compare/revisions/sources stubbed)
+### Backend (all data endpoints live)
 ```bash
 cd backend
 pip install -r requirements-dev.txt  # runtime + pytest/ruff/mypy (use requirements.txt for runtime only)
-uvicorn app.main:app --reload        # /api/health, /api/meta, /api/series work; compare/revisions/sources are TODO
-pytest                                # contract tests for the live endpoints pass; stubbed-endpoint tests stay skipped
+uvicorn app.main:app --reload        # /api/health + meta/series/compare/revisions/sources/export.csv
+pytest                                # contract tests for every endpoint pass
 ```
 
-### Frontend (Dashboard live; Comparison/Sources stubbed)
+### Frontend (Dashboard · Comparison · Sources & méthodologie)
 ```bash
 cd frontend
 pnpm install
@@ -123,9 +124,9 @@ pnpm dev                              # http://localhost:5173, proxies /api -> :
 ## API contract
 
 See [HANDOFF.md §6.4](./HANDOFF.md#64-api-contract) and
-[`backend/app/models.py`](./backend/app/models.py): `/api/meta`, `/api/series`
-(live); `/api/compare`, `/api/revisions`, `/api/sources`, `/api/export.csv` (stubbed,
-see the per-jalon status in §6.4).
+[`backend/app/models.py`](./backend/app/models.py): `/api/meta`, `/api/series`,
+`/api/compare`, `/api/revisions`, `/api/sources`, `/api/export.csv` — all live (see
+the per-jalon status in §6.4).
 
 ## Documents
 

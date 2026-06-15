@@ -4,13 +4,17 @@
 > existing Python data pipeline. Everything below reflects the real state of the
 > code and the methodological decisions already made.
 >
-> **Progress (2026-06):** the scaffold is no longer structure-only. Jalons 2
-> (Parquet output), 3 (backend `/api/meta` + `/api/series`) and 4 (frontend
-> routing + URL state + dashboard) are **done** (GitHub issues #3, #1, #4). The
-> remaining roadmap lives in the **epic [#2](https://github.com/payouri/wealth-fr/issues/2)**;
-> per-jalon status is tracked in §9. Sections §6.2/§6.4/§9 below are kept current;
-> their original "to build" proposals now read as the realised design where a
-> jalon is marked done.
+> **Progress (2026-06):** the scaffold is no longer structure-only. The full
+> reader-facing roadmap is **done** — jalons 2 (Parquet), 3 (`/api/meta` +
+> `/api/series`), 4 (frontend routing + dashboard), 5 (`/api/compare` +
+> comparison), 6 (`/api/revisions` + révisions table), 8 (`/api/sources` + Sources
+> & méthodologie page) and 9 (`/api/export.csv` + chart PNG) — GitHub issues #3,
+> #1, #4, #5, #6, #9, #10 are all closed. Former jalon 7 (scheduled refresh) is
+> **superseded by a Coolify Scheduled Task** (issue #8 closed as not-planned), not
+> a GitHub Action. The only items still open are jalon 6.5's live prod DGFiP fetch
+> run and the data-coverage backlog (§10). Per-jalon status is tracked in §9; the
+> epic is [#2](https://github.com/payouri/wealth-fr/issues/2). Sections §6.2/§6.4/§9
+> are kept current.
 
 ---
 
@@ -209,7 +213,7 @@ wealth-fr/                    # GitHub repo payouri/wealth-fr (local dir: eco_st
 │   │   ├── components/       # SeriesChart (Recharts), FilterBar, figure, ui/ (shadcn)
 │   │   ├── hooks/            # useDashboardParams (URL state), usePrefersReducedMotion
 │   │   ├── lib/              # domain.ts (labels/formatting), utils.ts
-│   │   └── views/            # Dashboard (real), Comparison + SourcesMethodo (stubs)
+│   │   └── views/            # Dashboard, Comparison, SourcesMethodo (all real)
 │   ├── Dockerfile            # nginx serves the built SPA, proxies /api
 │   └── package.json
 ├── docs/adr/                 # 0001 pipeline-off-compose, 0002 series resolution, 0003 compare scope
@@ -222,19 +226,18 @@ wealth-fr/                    # GitHub repo payouri/wealth-fr (local dir: eco_st
 
 ### 6.4 API contract
 
-Status: ✅ implemented · ⏳ stubbed (`raise NotImplementedError` / `TODO(jalon N)`) ·
-✖ not yet defined. The Pydantic models for every row below already exist in
-[backend/app/models.py](./backend/app/models.py) and their TS mirrors in
-[frontend/src/api/types.ts](./frontend/src/api/types.ts) — only the handlers are pending.
+Status: ✅ implemented. Every endpoint below has a live handler; the Pydantic models
+for every row exist in [backend/app/models.py](./backend/app/models.py) and their TS
+mirrors in [frontend/src/api/types.ts](./frontend/src/api/types.ts).
 
 | Status | Method | Endpoint          | Description                                                                                                 |
 | ------ | ------ | ----------------- | ----------------------------------------------------------------------------------------------------------- |
 | ✅      | `GET`  | `/api/meta`       | Value lists: sources, indicateurs, groupes, conventions, millésimes                                         |
 | ✅      | `GET`  | `/api/series`     | Filtered series. Query: `source, indicateur, groupe, concept` **(required)**`, unite` (optional, derived from `source`)`, annee_min, annee_max, euros_constants, millesime`. One Convention + one Millésime; ambiguous Conventions → `422` with choices (ADR 0002). |
-| ⏳ jalon 5 | `GET`  | `/api/compare`    | Same indicateur/groupe across several sources (dimensionless only — ADR 0003)                               |
-| ⏳ jalon 6 | `GET`  | `/api/revisions`  | Observations with several millésimes (value diff) — returns `RevisionDiff`                                  |
-| ⏳ jalon 8 | `GET`  | `/api/sources`    | Metadata + attributions/licences (see §7) — returns `SourceInfo`                                            |
-| ✖ jalon 9  | `GET`  | `/api/export.csv` | Export of the filtered view                                                                                 |
+| ✅      | `GET`  | `/api/compare`    | Same indicateur/groupe across several sources (dimensionless only — ADR 0003) — returns `list[Series]`      |
+| ✅      | `GET`  | `/api/revisions`  | Observations with several millésimes (value diff) — returns `RevisionDiff`                                  |
+| ✅      | `GET`  | `/api/sources`    | Metadata + attributions/licences (see §7) — returns `SourceInfo`                                            |
+| ✅      | `GET`  | `/api/export.csv` | Streamed export of the filtered view (tidy schema, Convention preserved)                                    |
 
 > There is also a ✅ `GET /api/health` liveness probe (used by the compose
 > healthcheck), not part of the data contract.
@@ -258,14 +261,14 @@ Status: ✅ implemented · ⏳ stubbed (`raise NotImplementedError` / `TODO(jalo
    euros toggle); Concept picker + 422 "pick a Convention" fallback; 2018 break
    marker in the amber `rupture` token; per-figure traceability line; filter state
    in the URL. (jalon 4)
-2. ⏳ **Source comparison** (`/comparison`) — routed **placeholder** today. Will
-   overlay WID vs INSEE vs DGFiP for one dimensionless indicateur, each line
-   Convention-labelled, with a "formes comparables, niveaux non comparables" banner.
-   (jalon 5)
-3. ⏳ **Sources & methodology** (`/sources`) — routed **placeholder** today. Will
-   explain Conventions, the ISF/IFI break, survey limits, attributions/licences,
-   millésimes and Révisions (the Révisions table lands in jalon 6, the narrative +
-   licences in jalon 8).
+2. ✅ **Source comparison** (`/comparison`) — overlays WID vs INSEE vs DGFiP for one
+   dimensionless indicateur, each line Convention-labelled (`ConventionLegend`, with
+   a non-hue dash cue), under a "Formes comparables, niveaux non comparables" banner;
+   chart PNG export. (jalon 5)
+3. ✅ **Sources & methodology** (`/sources`) — explains the Conventions and why they
+   are not interchangeable, the ISF→IFI break, survey limits, and shows
+   attributions/licences from `/api/sources`; wraps the Révisions diff table fed by
+   `/api/revisions`. (Révisions table = jalon 6; narrative + licences = jalon 8.)
 
 ---
 
@@ -300,7 +303,9 @@ The sequencing was refined in the **epic [#2](https://github.com/payouri/wealth-
 (lettered/decimal inserts avoid renumbering): a **frontend track** (4 → 5 → 6 → 8 →
 9) that can proceed entirely against the jalon-3 fixture, and an independent
 **data/ops track** (2 → 6.5 → 7) that only reconverges once real data replaces the
-fixture. Each open jalon has (or gets) its own `ready-for-agent` issue.
+fixture. The frontend track is fully landed; on the data/ops track jalon 7's GitHub
+Action was superseded by a Coolify Scheduled Task, leaving only jalon 6.5's live prod
+DGFiP fetch run open.
 
 | Jalon | Track | Status | Scope |
 | ----- | ----- | ------ | ----- |
@@ -308,12 +313,12 @@ fixture. Each open jalon has (or gets) its own `ready-for-agent` issue.
 | **2** | data/ops | ✅ done (#3) | **Parquet** output beside the cumulative CSV in the pipeline's write step. |
 | **3** | backend | ✅ done (#1) | FastAPI + DuckDB (Parquet→CSV fallback); `/api/meta` + `/api/series` with the Convention guard rail and single-Millésime resolution (ADR 0002); contract tests. |
 | **4** | frontend | ✅ done (#4) | Routing (`react-router-dom`) + URL state; design tokens wired; full filter bar from `/api/meta` incl. Concept picker, 422 fallback, euros toggle; two stacked charts (shares + Gini) via TanStack Query; 2018 amber rupture marker; loading/empty-200/422/error states; traceability line. |
-| **5** | frontend | ⏳ pending (#5) | `GET /api/compare` (fans the jalon-3 resolver across sources, dimensionless only — ADR 0003) + comparison view with Convention-labelled legend and "niveaux non comparables" banner. |
-| **6** | frontend | ⏳ pending (#6) | `GET /api/revisions` (returns `RevisionDiff` for Observations across >1 Millésime) + a Révisions table mounted in the Sources & méthodologie route. |
+| **5** | frontend | ✅ done (#5) | `GET /api/compare` (fans the jalon-3 resolver across sources, dimensionless only — ADR 0003) + comparison view with Convention-labelled legend and "niveaux non comparables" banner. |
+| **6** | frontend | ✅ done (#6) | `GET /api/revisions` (returns `RevisionDiff` for Observations across >1 Millésime) + a Révisions table mounted in the Sources & méthodologie route. |
 | **6.5** | data/ops | 🟡 partly done (#7) | **Live integration validation.** ✅ The real **WID** API now runs live in prod (key, format, batched fetch) and a real `WID 2026` Millésime exists. ✅ The **DGFiP** `.xls`/`.xlsx` parser exists (`pipeline/dgfip_parse.py`) and is validated against the real workbooks: the 3 IFI national breakdowns — déciles de patrimoine (`/node/25582`), déciles de RFR (`/node/25583`), tranches de taux marginal (`/node/25584`) — each namespaced into `groupe` (`decile_patrimoine_*` / `decile_rfr_*` / `tranche_marginale_*`), plus the frozen ISF 1999–2017 series (data.gouv.fr resource → `nb_foyers`, `total`). There is **no single URL**: `netfetch.dgfip_source_urls()` is a registry (`DGFIP_SOURCE_URLS`, default = the 3 IFI `/node/` links + the ISF data.gouv.fr resource) downloaded as a lot; download/parse failures fall back to the curated CSV / pre-filled points. ⏳ Still pending: a live prod run of the registry fetch. Executes the ADR 0001 precondition / §10 risk. |
 | **7** | data/ops | ✅ superseded by Coolify (#8) | Scheduled refresh of the Millésime. **Realised differently from the original plan:** instead of a GitHub Action committing the dataset to the repo, production refreshes via a **Coolify Scheduled Task** that `docker exec`s the always-on `pipeline-runner` (`docker-compose.production.yml`) running `--download --full` into a persistent `dataset` volume — the data is **not** versioned in the repo. (The GitHub-Action variant was dropped.) Effective once live data exists (jalon 6.5). |
-| **8** | frontend | ⏳ pending (#9) | Sources & méthodologie page (Conventions, ISF→IFI, survey limits, Millésimes/Révisions narrative) + `GET /api/sources` returning `SourceInfo` (url / convention / licence / attribution). Wraps the jalon-6 Révisions section. |
-| **9** | frontend | ⏳ pending (#10) | Export: `GET /api/export.csv` (streams the filtered rows via the resolver) + client-side chart **PNG** export on Dashboard and Comparison. Share-a-view is already covered by jalon-4 URL state. |
+| **8** | frontend | ✅ done (#9) | Sources & méthodologie page (Conventions, ISF→IFI, survey limits, Millésimes/Révisions narrative) + `GET /api/sources` returning `SourceInfo` (url / convention / licence / attribution). Wraps the jalon-6 Révisions section. |
+| **9** | frontend | ✅ done (#10) | Export: `GET /api/export.csv` (streams the filtered rows via the resolver) + client-side chart **PNG** export on Dashboard and Comparison. Share-a-view is already covered by jalon-4 URL state. |
 
 All new backend endpoints **reuse the jalon-3 modules** (series resolver, ruptures
 lookup, meta builder, dataset source resolver) — no parallel resolution paths.

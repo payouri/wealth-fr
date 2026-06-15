@@ -177,8 +177,8 @@ the canonical Okabe-Ito sRGB hex, kept exact rather than re-approximated.
   series. One stable hue per source; always paired with a non-hue cue (direct
   end-of-line label and/or dash pattern). Okabe-Ito is colorblind-safe by design.
 - **Rupture / Annotation** (`oklch(0.66 0.09 75)`, muted amber): the 2018 ISF→IFI
-  break and millésime markers. Calm and explanatory, **never** alarm-red. Replaces
-  the `#dc2626` currently hardcoded in the chart stub.
+  break and millésime markers. Calm and explanatory, **never** alarm-red. This token
+  replaced the `#dc2626` once hardcoded in the chart (fixed in jalon 4).
 
 ### Named Rules
 **The Quiet Chrome Rule.** Color belongs to the data. The interface chrome stays

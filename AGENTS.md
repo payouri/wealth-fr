@@ -8,11 +8,14 @@ defers to the docs below for substance.
 
 A webapp that explores and compares harmonized **wealth-concentration** series
 for France since 2000, across three public sources (WID, INSEE, DGFiP) whose
-measurement **Conventions are not interchangeable**. The read path works end to
-end on a curated/fixture dataset: the Python pipeline, the backend `/api/meta` +
-`/api/series`, and the frontend dashboard are real (jalons 2–4). The comparison,
-révisions, sources/methodology and export surfaces are still typed stubs with
-`TODO(jalon N)` markers — see the jalon roadmap in HANDOFF.md §9.
+measurement **Conventions are not interchangeable**. All reader-facing surfaces
+are now implemented: the Python pipeline, the backend (`/api/meta`, `/api/series`,
+`/api/compare`, `/api/revisions`, `/api/sources`, `/api/export.csv`), and the
+frontend (Dashboard, Comparison, Sources & méthodologie) are real (jalons 2–6, 8,
+9). The only roadmap items not closed are jalon 6.5's remaining **live prod run of
+the DGFiP registry fetch** and the data-coverage backlog (HANDOFF §10); scheduled
+refresh (former jalon 7) is realised as a **Coolify Scheduled Task**, not a GitHub
+Action — see the jalon roadmap in HANDOFF.md §9.
 
 **Read these before changing anything — do not duplicate their content here:**
 
@@ -143,9 +146,12 @@ Things the code won't tell you, that have already bitten this project:
   the cumulative CSV. The Parquet output now ships (**jalon 2** done); both files
   are gitignored — in production the data lives in a Coolify-managed `dataset`
   volume (`docker-compose.production.yml`), refreshed via a Coolify Scheduled Task.
-- **Stubs are intentional.** `raise NotImplementedError` / `TODO(jalon N)` are not
-  bugs. Resolve N against HANDOFF.md §9 *before* implementing; don't "fix" a stub
-  blind.
+- **The reader-facing jalons are all landed.** Every API endpoint and frontend
+  view that was once a `TODO(jalon N)` stub is now implemented (jalons 2–6, 8, 9);
+  the `# TODO(jalon N)` comments left beside live handlers are provenance markers,
+  not stubs. What remains open is jalon 6.5's live prod DGFiP fetch run and the
+  data-coverage backlog — check HANDOFF.md §9/§10 before assuming something is
+  unfinished.
 - **Don't translate the schema identifiers** (see Conventions) — they are French
   on purpose.
 
