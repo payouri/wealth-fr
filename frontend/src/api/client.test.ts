@@ -46,3 +46,35 @@ describe("api.series", () => {
     expect(url).not.toContain("unite=");
   });
 });
+
+describe("api.compare", () => {
+  it("sends the sources as a CSV list for one indicateur/groupe", async () => {
+    const fetchMock = mockFetch([]);
+    await api.compare({
+      indicateur: "part_patrimoine",
+      groupe: "top1",
+      sources: ["WID", "INSEE", "DGFiP"],
+    });
+
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toContain("/api/compare?");
+    expect(url).toContain("indicateur=part_patrimoine");
+    expect(url).toContain("groupe=top1");
+    // Sources travel as a single comma-joined param (server splits it).
+    expect(decodeURIComponent(url)).toContain("sources=WID,INSEE,DGFiP");
+  });
+});
+
+describe("api.exportCsvUrl", () => {
+  it("builds a /api/export.csv link carrying the filter + Convention", () => {
+    const url = api.exportCsvUrl({
+      source: "WID",
+      indicateur: "part_patrimoine",
+      groupe: "top1",
+      concept: "net",
+    });
+    expect(url).toContain("/api/export.csv?");
+    expect(url).toContain("source=WID");
+    expect(url).toContain("concept=net");
+  });
+});

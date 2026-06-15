@@ -1,7 +1,7 @@
 // Shared building blocks for a chart figure: the frame (title + body +
 // traceability footer) and the four states every figure must cover —
 // loading, empty (valid 200, no rows), ambiguous (422), error.
-import { AlertTriangle, Inbox, Layers } from "lucide-react";
+import { AlertTriangle, Inbox, Info, Layers } from "lucide-react";
 import type { ConventionChoice, Series } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { CONCEPT_LABEL, conventionLabel } from "@/lib/domain";
@@ -11,19 +11,25 @@ export function FigureFrame({
   subtitle,
   children,
   footer,
+  actions,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  /** Low-emphasis controls (e.g. export) aligned to the right of the caption. */
+  actions?: React.ReactNode;
 }) {
   return (
     <figure className="rounded-lg border border-border bg-background">
-      <figcaption className="border-b border-border px-5 pt-4 pb-3">
-        <h2 className="font-serif text-[1.375rem] leading-tight font-semibold text-foreground">
-          {title}
-        </h2>
-        {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
+      <figcaption className="flex items-start justify-between gap-4 border-b border-border px-5 pt-4 pb-3">
+        <div className="min-w-0">
+          <h2 className="font-serif text-[1.375rem] leading-tight font-semibold text-foreground">
+            {title}
+          </h2>
+          {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
+        </div>
+        {actions && <div className="shrink-0 pt-0.5">{actions}</div>}
       </figcaption>
       <div className="px-3 py-4 sm:px-4">{children}</div>
       {footer && (
@@ -82,6 +88,32 @@ function StatePanel({
       <p className="font-medium text-foreground">{title}</p>
       {children && <div className="max-w-md text-sm text-muted-foreground">{children}</div>}
     </div>
+  );
+}
+
+/** A general-purpose figure state (info / neutral) for cases the four canonical
+ *  panels below don't cover — e.g. "pick a source" or a calm ambiguity notice. */
+export function StateNotice({
+  title,
+  children,
+  tone = "info",
+  height,
+}: {
+  title: string;
+  children?: React.ReactNode;
+  tone?: "info" | "neutral";
+  height?: number;
+}) {
+  return (
+    <StatePanel
+      icon={
+        tone === "info" ? <Info className="size-6 text-primary" /> : <Inbox className="size-6" />
+      }
+      title={title}
+      height={height}
+    >
+      {children}
+    </StatePanel>
   );
 }
 

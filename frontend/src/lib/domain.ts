@@ -53,6 +53,11 @@ export function groupeLabel(g: string): string {
 // The dashboard's headline: the three top shares, plotted together on one axis.
 export const SHARE_GROUPES = ["top10", "top1", "top0_1"] as const;
 
+// Only dimensionless indicateurs may be compared across Sources: their shapes are
+// comparable even when the underlying Unités are not (ADR 0003). Euro levels are
+// excluded — the comparison view never offers them.
+export const COMPARABLE_INDICATEURS = ["part_patrimoine", "gini"] as const;
+
 // Stable groupe -> (colour, dash) on the single-source shares chart. Three
 // distinct Okabe-Ito hues; the dash pattern is the redundant, hue-free cue.
 export const GROUPE_ENCODING: Record<string, { color: string; dash: string }> = {

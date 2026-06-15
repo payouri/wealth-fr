@@ -1,7 +1,8 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ApiError, api } from "@/api/client";
 import type { ConventionChoice, Series } from "@/api/types";
+import ExportButtons from "@/components/ExportButtons";
 import FilterBar from "@/components/FilterBar";
 import {
   ConventionPrompt,
@@ -26,6 +27,7 @@ import {
   SOURCE_ENCODING,
   SOURCE_LABEL,
 } from "@/lib/domain";
+import { exportStem } from "@/lib/exportChart";
 
 type SeriesResult = {
   data?: Series;
@@ -62,6 +64,8 @@ interface ChartFigureProps {
   onPick: (concept: string) => void;
   onRetry: () => void;
   height?: number;
+  /** When set, render CSV/PNG export controls once the figure has data (jalon 9). */
+  exportProps?: { stem: string; csvUrl?: string };
 }
 
 function ChartFigure({
@@ -77,7 +81,9 @@ function ChartFigure({
   onPick,
   onRetry,
   height = 320,
+  exportProps,
 }: ChartFigureProps) {
+  const chartRef = useRef<HTMLDivElement>(null);
   const pending = results.length === 0 || results.some((r) => r.isPending);
   const choices = ambiguousFrom(results);
   const successes = results.flatMap((r) => (r.data ? [r.data] : []));
@@ -125,9 +131,14 @@ function ChartFigure({
     <FigureFrame
       title={title}
       subtitle={subtitle}
+      actions={
+        hasData && exportProps ? (
+          <ExportButtons targetRef={chartRef} stem={exportProps.stem} csvUrl={exportProps.csvUrl} />
+        ) : undefined
+      }
       footer={hasData && representative ? <Traceability series={representative} /> : undefined}
     >
-      {body}
+      <div ref={chartRef}>{body}</div>
     </FigureFrame>
   );
 }
@@ -218,6 +229,27 @@ export default function Dashboard() {
     );
   }
 
+  // CSV is single-series by design (no batch endpoint): export the focused
+  // groupe, defaulting to the headline top1 on an unfocused shares view. PNG
+  // captures the whole figure regardless.
+  const exportGroupe = isShare ? params.groupe || "top1" : activeGroupe;
+  const exportProps = {
+    stem: exportStem([
+      params.source,
+      params.indicateur,
+      exportGroupe,
+      eurosFlag ? "euros_constants" : undefined,
+    ]),
+    csvUrl: api.exportCsvUrl({
+      source: params.source,
+      indicateur: params.indicateur,
+      groupe: exportGroupe,
+      concept: conceptParam,
+      euros_constants: eurosFlag,
+      annee_min: anneeMin,
+    }),
+  };
+
   const primaryTitle = isShare ? "Parts du patrimoine détenues par le sommet" : indMeta.label;
   const primarySubtitle = isShare
     ? "Part du patrimoine net total détenue par chaque fraction, en %."
@@ -247,6 +279,7 @@ export default function Dashboard() {
         anneeMax={anneeMax}
         conceptPinned={!!params.concept}
         emphasizeKey={isShare && params.groupe ? params.groupe : null}
+        exportProps={exportProps}
         onPick={(concept) => update({ concept })}
         onRetry={() => {
           for (const q of primaryQueries) q.refetch();

@@ -65,3 +65,12 @@ export interface RevisionDiff {
   indicateur: Indicateur;
   valeurs: { millesime_source: string; valeur: number; date_extraction: string }[];
 }
+
+/** Provenance + reuse terms per Source (GET /api/sources, HANDOFF §7). */
+export interface SourceInfo {
+  source: Source;
+  url: string;
+  convention: string;
+  licence: string;
+  attribution: string;
+}
