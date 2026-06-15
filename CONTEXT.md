@@ -38,7 +38,12 @@ An (Unité + Concept) pair. The guard rail of the whole product: values may only
 _Avoid_: methodology, basis
 
 **Groupe**:
-The sub-population a value describes — `ensemble`, `top10`, `top5`, `top1`, `top0_1`, `top50`, `bottom50`, `middle40`, `redevables`, the threshold points `mediane` and `decile_1`…`decile_9`, …
+The sub-population a value describes. Three semantically distinct families coexist under this one field and are never interchangeable:
+- **Fractions de concentration** — nested top/bottom shares of the whole population: `ensemble`, `top10`, `top1`, `top0_1`, `top50`, `bottom50`, `middle40`.
+- **Déciles** — tenths of a ranking, namespaced by the variable ranked on: `decile_patrimoine_1`…`decile_patrimoine_10` (ranked by wealth), `decile_rfr_1`…`decile_rfr_10` (ranked by revenu fiscal de référence). `decile_*_1` is the lowest tenth, `decile_*_10` the highest.
+- **Tranches marginales** — the IFI marginal-rate brackets `tranche_marginale_2`…`tranche_marginale_5`. Each is defined by its *taux marginal* (0,7 / 1,0 / 1,25 / 1,5 %), not by its ordinal — the index is an opaque workbook row number.
+
+Plus standalone groups such as `redevables` (the IFI taxpayer population) and `patrimoine_sup_10M`. WID additionally emits its full **percentile lattice** (`p0p1`, `p10p20`, `p99.9p100`, …) — the raw distributional granularity the WID API returns, of which the concentration fractions are named aliases.
 _Avoid_: segment, bucket, cohort
 
 **Indicateur**:
