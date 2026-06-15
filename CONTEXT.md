@@ -38,7 +38,7 @@ An (Unité + Concept) pair. The guard rail of the whole product: values may only
 _Avoid_: methodology, basis
 
 **Groupe**:
-The sub-population a value describes — `ensemble`, `top10`, `top1`, `top0_1`, `bottom50`, `middle40`, `redevables`, …
+The sub-population a value describes — `ensemble`, `top10`, `top5`, `top1`, `top0_1`, `top50`, `bottom50`, `middle40`, `redevables`, the threshold points `mediane` and `decile_1`…`decile_9`, …
 _Avoid_: segment, bucket, cohort
 
 **Indicateur**:
