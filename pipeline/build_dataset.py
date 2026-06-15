@@ -91,8 +91,8 @@ SCHEMA = [
     "source",  # WID | INSEE | DGFiP
     "concept_patrimoine",  # net | brut | immobilier (IFI) | total (ISF)
     "unite",  # adulte | menage | foyer_fiscal
-    "groupe",  # ensemble | top10 | top1 | bottom50 | redevables | ...
-    "indicateur",  # part_patrimoine | gini | patrimoine_moyen | nb_foyers | impot_moyen
+    "groupe",  # ensemble | top10 | top1 | bottom50 | redevables | decile_* | tranche_* | ...
+    "indicateur",  # part_patrimoine | gini | patrimoine_moyen | seuil | nb_foyers | impot_moyen
     "valeur",  # float
     "unite_valeur",  # % | indice | euros | euros_constants_<base> | effectif
     "euros_constants",  # bool

@@ -34,9 +34,9 @@ Two working, tested Python files. Originally validated only against simulated
 responses (restricted dev network), but as of **2026-06 the WID API has been run
 live in production** — a real `WID 2026` Millésime (~157k observations) now exists
 in the prod `dataset` volume. **DGFiP** now parses the real ISF/IFI workbooks
-(`pipeline/dgfip_parse.py`, jalon 6.5), with fallback to the curated CSV /
-pre-filled points; only a live `DGFIP_IFI_XLS_URL` is still unwired. **INSEE** is
-curated by design.
+(`pipeline/dgfip_parse.py`, jalon 6.5) — fetched as a registry lot
+(`DGFIP_SOURCE_URLS`, no single URL), with fallback to the curated CSV /
+pre-filled points on any download/parse failure. **INSEE** is curated by design.
 
 ### 2.1 `build_dataset.py` — orchestrator
 
@@ -51,7 +51,7 @@ Key functions:
 | `load_wid(path, …)`               | Reads a local WID file (`WID_data_FR.csv`, `;` separator) → tidy     |
 | `_wid_rows_to_tidy(rows, …)`      | Converts raw WID API rows → tidy                                     |
 | `load_insee(…)`                   | Pre-filled (curated) official INSEE points → tidy                    |
-| `load_dgfip(path, …)`             | ISF/IFI: external CSV if present, otherwise pre-filled points → tidy |
+| `load_dgfip(path, …)`             | ISF/IFI: real Excel workbook(s) via `dgfip_parse` if present (file or dir), else external CSV, else pre-filled points → tidy |
 | `_stamp(rows, date, millesime)`   | Adds the historisation fields                                        |
 | `deflate_levels(df, base_year)`   | Converts levels (€) to constant euros (alters neither % nor Gini)    |
 | `harmonize(*frames, annee_min)`   | Stacks the sources, filters the period, orders, validates the schema |

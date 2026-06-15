@@ -84,9 +84,12 @@ python build_dataset.py --annee-min 2000
 # Output: dataset_concentration_patrimoine_fr.csv + .parquet (+ dated .xlsx)
 ```
 > ⚠️ As of 2026-06 the **WID** API has been run **live in production** (a real
-> `WID 2026` Millésime, ~157k observations). **DGFiP** still loads curated points /
-> a local CSV — its live `.xlsx` parser is **jalon 6.5** (pending), along with
-> explicit auth-failure fallback ([HANDOFF.md §10](./HANDOFF.md#10-risks--open-questions)).
+> `WID 2026` Millésime, ~157k observations). **DGFiP** now parses the real ISF/IFI
+> workbooks (`pipeline/dgfip_parse.py`, jalon 6.5) — there is no single URL, so a
+> registry (`DGFIP_SOURCE_URLS`, default = 3 IFI `/node/` links + the ISF
+> data.gouv.fr resource) is fetched as a lot, with fallback to the curated CSV /
+> pre-filled points on any download or parse failure
+> ([HANDOFF.md §10](./HANDOFF.md#10-risks--open-questions)).
 > The **Parquet** output (jalon 2) is written — the backend prefers Parquet, falls
 > back to CSV.
 
