@@ -3,19 +3,21 @@
 Explore, visualize and compare harmonized wealth-concentration series for France
 (top shares, Gini, average wealth) across three public sources — **WID**, **INSEE**,
 **DGFiP** — while respecting that their measurement **Conventions are not
-interchangeable**. See [HANDOFF.md](./HANDOFF.md) for the full product brief and
-[CONTEXT.md](./CONTEXT.md) for the domain glossary.
+interchangeable**. See [CONTEXT.md](./CONTEXT.md) for the domain glossary and
+[AGENTS.md](./AGENTS.md) for the rules of engagement.
 
 > **Status:** the full reader-facing product is implemented (jalons 2–6, 8, 9).
 > **Done:** pipeline Parquet output (jalon 2); the backend endpoints `/api/meta`,
 > `/api/series`, `/api/compare`, `/api/revisions`, `/api/sources`, `/api/export.csv`
 > (jalons 3, 5, 6, 8, 9); the frontend Dashboard, Comparison and Sources &
 > méthodologie views with URL state and chart PNG export (jalons 4, 5, 8, 9). A real
-> `WID 2026` Millésime is live in production. **Open:** jalon 6.5's live prod DGFiP
-> fetch run, and the data-coverage backlog — see the jalon roadmap in
-> [HANDOFF.md §9](./HANDOFF.md#9-jalon-roadmap) and epic
-> [#2](https://github.com/payouri/wealth-fr/issues/2). Scheduled refresh (former
-> jalon 7) runs as a **Coolify Scheduled Task**, not a GitHub Action.
+> `WID 2026` Millésime is live in production. **Open:** the live prod DGFiP fetch run
+> ([#12](https://github.com/payouri/wealth-fr/issues/12)) and the data-coverage
+> backlog ([#13](https://github.com/payouri/wealth-fr/issues/13)); the roadmap epic
+> [#2](https://github.com/payouri/wealth-fr/issues/2) is closed. Scheduled refresh
+> (former jalon 7) runs as a **Coolify Scheduled Task**, not a GitHub Action — see
+> [Production](#production) and
+> [ADR 0001](./docs/adr/0001-pipeline-off-compose-startup-path.md).
 
 ## Layout
 
@@ -88,9 +90,10 @@ python build_dataset.py --annee-min 2000
 > `WID 2026` Millésime, ~157k observations). **DGFiP** now parses the real ISF/IFI
 > workbooks (`pipeline/dgfip_parse.py`, jalon 6.5) — there is no single URL, so a
 > registry (`DGFIP_SOURCE_URLS`, default = 3 IFI `/node/` links + the ISF
-> data.gouv.fr resource) is fetched as a lot, with fallback to the curated CSV /
-> pre-filled points on any download or parse failure
-> ([HANDOFF.md §10](./HANDOFF.md#10-risks--open-questions)).
+> data.gouv.fr resource — see [`.env.example`](./.env.example)) is fetched as a lot,
+> with fallback to the curated CSV / pre-filled points on any download or parse
+> failure. A live prod run of that fetch is still open
+> ([#12](https://github.com/payouri/wealth-fr/issues/12)).
 > The **Parquet** output (jalon 2) is written — the backend prefers Parquet, falls
 > back to CSV.
 
@@ -123,13 +126,34 @@ pnpm dev                              # http://localhost:5173, proxies /api -> :
 
 ## API contract
 
-See [HANDOFF.md §6.4](./HANDOFF.md#64-api-contract) and
-[`backend/app/models.py`](./backend/app/models.py): `/api/meta`, `/api/series`,
-`/api/compare`, `/api/revisions`, `/api/sources`, `/api/export.csv` — all live (see
-the per-jalon status in §6.4).
+The contract **is the code**: the Pydantic models in
+[`backend/app/models.py`](./backend/app/models.py) and their TS mirror in
+[`frontend/src/api/types.ts`](./frontend/src/api/types.ts). Endpoints (all live):
+`/api/meta`, `/api/series`, `/api/compare`, `/api/revisions`, `/api/sources`,
+`/api/export.csv`. Query-param / `422` semantics live in the FastAPI route
+signatures ([`backend/app/main.py`](./backend/app/main.py)) and
+[ADR 0002](./docs/adr/0002-series-endpoint-resolves-one-convention-one-millesime.md).
+
+## Production
+
+In production the app runs on **Coolify**. The dataset (CSV + Parquet) is **not**
+committed to the repo — it lives in a Coolify-managed persistent `dataset` volume
+that the backend reads (see
+[`docker-compose.production.yml`](./docker-compose.production.yml)). The volume is
+refreshed by a **Coolify Scheduled Task** that `docker exec`s the always-on
+`pipeline-runner` container with `--download --full`:
+
+```bash
+docker exec <pipeline-runner> python build_dataset.py --download --full
+```
+
+There is **no GitHub Action** that refreshes or commits the data — generation stays
+off the deploy path by design. See
+[ADR 0001](./docs/adr/0001-pipeline-off-compose-startup-path.md) for why (and for
+the repo→volume decision).
 
 ## Documents
 
 - [AGENTS.md](./AGENTS.md) — rules of engagement for coding agents: commands, gates, traps.
-- [HANDOFF.md](./HANDOFF.md) — full product brief, sources, API contract, jalons (source of truth).
 - [CONTEXT.md](./CONTEXT.md) — domain glossary and invariants.
+- [docs/adr/](./docs/adr/) — architecture decisions and *why*.

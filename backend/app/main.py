@@ -1,9 +1,10 @@
-"""FastAPI app — the API contract from HANDOFF.md §6.4.
+"""FastAPI app — the API contract (these route signatures + the Pydantic models
+in `models.py`; mirrored in `frontend/src/api/types.ts`).
 
 All read endpoints are implemented: `/api/meta` + `/api/series` (jalon 3),
 `/api/compare` (jalon 5), `/api/revisions` (jalon 6), `/api/sources` (jalon 8)
-and `/api/export.csv` (jalon 9). Route bodies stay thin and delegate the §3 /
-guard-rail logic to `data.py`; the new endpoints reuse the jalon-3 resolver.
+and `/api/export.csv` (jalon 9). Route bodies stay thin and delegate the
+schema / guard-rail logic to `data.py`; the new endpoints reuse the jalon-3 resolver.
 """
 
 from __future__ import annotations
@@ -108,7 +109,7 @@ def revisions():
 
 @app.get("/api/sources", response_model=list[SourceInfo])
 def sources():
-    """Provenance + licence/attribution per Source (jalon 8, HANDOFF §7)."""
+    """Provenance + licence/attribution per Source (jalon 8; data in `data.py` `SOURCE_INFO`)."""
     return data.get_sources()
 
 

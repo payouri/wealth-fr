@@ -1,4 +1,4 @@
-// Typed mirror of the API contract (HANDOFF.md §6.4) and tidy schema (§3).
+// Typed mirror of the API contract — keep in sync with `backend/app/models.py`.
 // `unite` and `concept_patrimoine` are the Convention — keep them on every value.
 
 export type Source = "WID" | "INSEE" | "DGFiP";
@@ -70,7 +70,7 @@ export interface RevisionDiff {
   valeurs: { millesime_source: string; valeur: number; date_extraction: string }[];
 }
 
-/** Provenance + reuse terms per Source (GET /api/sources, HANDOFF §7). */
+/** Provenance + reuse terms per Source (GET /api/sources; data in `data.py` `SOURCE_INFO`). */
 export interface SourceInfo {
   source: Source;
   url: string;

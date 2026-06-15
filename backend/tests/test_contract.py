@@ -1,4 +1,5 @@
-"""Contract tests against HANDOFF.md §6.4 — endpoint-level, via TestClient.
+"""Contract tests against the API contract (`app/models.py` + the route signatures
+in `app/main.py`) — endpoint-level, via TestClient.
 
 The dataset is the committed fixture (see conftest). These exercise the HTTP
 contract: the Convention echo, the 422-with-choices on ambiguity, the empty

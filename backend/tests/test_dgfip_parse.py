@@ -12,7 +12,7 @@ HIST_KEYS. These tests build *synthetic* workbooks mirroring the real layouts
 - the three breakdowns coexist in one directory with zero HIST_KEYS collisions;
 - ISF (`nombres` sheet) -> `nb_foyers` per year, Convention `total`;
 - the dispatcher ignores commune-level workbooks and non-Excel files;
-- `load_dgfip` parses a directory and falls back to DGFIP_POINTS (HANDOFF §10).
+- `load_dgfip` parses a directory and falls back to DGFIP_POINTS (issue #12).
 """
 
 from __future__ import annotations

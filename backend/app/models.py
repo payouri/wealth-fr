@@ -1,6 +1,8 @@
-"""Pydantic schemas — the API-facing contract (HANDOFF.md §6.4).
+"""Pydantic schemas — the API-facing contract itself (this file and
+`frontend/src/api/types.ts` are its two mirrors; keep them in sync).
 
-These mirror the tidy data schema (HANDOFF.md §3). The two structural dimensions,
+These mirror the tidy data schema (the `EXPORT_COLUMNS` list in `data.py` and the
+pipeline's harmonized output). The two structural dimensions,
 `unite` and `concept_patrimoine`, are the Convention and must be preserved and
 exposed everywhere (DB -> API -> UI). See CONTEXT.md.
 
@@ -61,7 +63,7 @@ class Series(BaseModel):
 
 
 class RevisionDiff(BaseModel):
-    """An observation that exists in more than one millésime (HANDOFF.md §6.4)."""
+    """An observation that exists in more than one millésime (`/api/revisions`)."""
 
     annee: int
     source: str
@@ -73,7 +75,7 @@ class RevisionDiff(BaseModel):
 
 
 class SourceInfo(BaseModel):
-    """Provenance + licence/attribution metadata (HANDOFF.md §7)."""
+    """Provenance + licence/attribution metadata (data in `data.py` `SOURCE_INFO`, served by `/api/sources`)."""
 
     source: str
     url: str

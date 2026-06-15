@@ -104,7 +104,7 @@ def _availability(con: duckdb.DuckDBPyConnection, relation: str) -> dict[str, di
 
 
 def build_meta(con: duckdb.DuckDBPyConnection, relation: str) -> Meta:
-    """Distinct dimension values + global `annee_min`/`annee_max` (HANDOFF §6.4)."""
+    """Distinct dimension values + global `annee_min`/`annee_max` (serves `/api/meta`)."""
     bounds = con.execute(f"SELECT min(annee), max(annee) FROM {relation}").fetchone()
     annee_min, annee_max = bounds if bounds else (0, 0)
     return Meta(
@@ -138,7 +138,8 @@ class AmbiguousConvention(Exception):
 
 
 # Tidy schema columns, in order — the export surface and the canonical row shape
-# (HANDOFF §3). Kept here so a single list defines what /api/export.csv streams.
+# (mirrors the pipeline's harmonized output + `models.py`). Kept here so a single
+# list defines what /api/export.csv streams.
 EXPORT_COLUMNS = [
     "annee",
     "source",
@@ -408,8 +409,9 @@ def resolve_revisions(con: duckdb.DuckDBPyConnection, relation: str) -> list[Rev
     return list(out.values())
 
 
-# Provenance + licence/attribution per Source (HANDOFF §7). Static metadata —
-# the methodology page renders it so reuse terms stay in sync with the data.
+# Provenance + licence/attribution per Source — the source of truth, served by
+# /api/sources. Static metadata — the methodology page renders it so reuse terms
+# stay in sync with the data.
 SOURCE_INFO: list[SourceInfo] = [
     SourceInfo(
         source="WID",

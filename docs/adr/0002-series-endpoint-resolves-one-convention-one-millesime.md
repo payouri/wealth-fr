@@ -10,8 +10,11 @@ to do it **strictly** rather than guess.
 ## Decision
 
 - **Concept is a required query param.** It genuinely varies within a Source
-  (across a Rupture), so it cannot be inferred. This deviates from
-  HANDOFF.md §6.4, which listed `concept` as optional — §6.4 has been corrected.
+  (across a Rupture), so it cannot be inferred. This deviated from the original
+  handoff brief, which listed `concept` as optional. (That brief, HANDOFF.md, has
+  since been retired; whether the running code actually enforces "required" or
+  implements an intentional "optional → `422` pick-a-Convention" flow is the open
+  reconciliation in [#11](https://github.com/payouri/wealth-fr/issues/11).)
 - **Unité is derived from `source`**, not required. It is one-per-source in all
   three loaders (WID=`adulte`, INSEE=`menage`, DGFiP=`foyer_fiscal`) and echoed
   back in the response.
@@ -31,8 +34,9 @@ to do it **strictly** rather than guess.
 ## Consequences
 
 - The two contract mirrors (`backend/app/models.py` ↔
-  `frontend/src/api/types.ts`) and the frontend client must mark `concept`
-  required; both trace to the corrected HANDOFF.md §6.4.
+  `frontend/src/api/types.ts`) and the frontend client are the contract of record
+  for `concept`; see [#11](https://github.com/payouri/wealth-fr/issues/11) on
+  reconciling the required-vs-optional stance between this ADR and the code.
 - The frontend must obtain a valid `concept` (from `/api/meta`) before calling
   `/api/series`, and must handle the `422`-with-choices response as a
   "pick a Convention" prompt rather than an error.

@@ -26,7 +26,7 @@ from build_dataset import OUTPUT_STEM, write_outputs  # noqa: E402
 
 
 def _sample_df(date_extraction: str = "2024-01-01", millesime: str = "WID 2024") -> pd.DataFrame:
-    """A tidy-schema slice big enough to exercise the round-trip (HANDOFF §3)."""
+    """A tidy-schema slice big enough to exercise the round-trip (`EXPORT_COLUMNS` in `app/data.py`)."""
     return pd.DataFrame(
         [
             {

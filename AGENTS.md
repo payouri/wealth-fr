@@ -12,16 +12,17 @@ measurement **Conventions are not interchangeable**. All reader-facing surfaces
 are now implemented: the Python pipeline, the backend (`/api/meta`, `/api/series`,
 `/api/compare`, `/api/revisions`, `/api/sources`, `/api/export.csv`), and the
 frontend (Dashboard, Comparison, Sources & méthodologie) are real (jalons 2–6, 8,
-9). The only roadmap items not closed are jalon 6.5's remaining **live prod run of
-the DGFiP registry fetch** and the data-coverage backlog (HANDOFF §10); scheduled
+9). The only work not closed is the **live prod run of the DGFiP
+registry fetch** ([#12](https://github.com/payouri/wealth-fr/issues/12)) and the
+data-coverage backlog ([#13](https://github.com/payouri/wealth-fr/issues/13)); the
+roadmap epic [#2](https://github.com/payouri/wealth-fr/issues/2) is closed. Scheduled
 refresh (former jalon 7) is realised as a **Coolify Scheduled Task**, not a GitHub
-Action — see the jalon roadmap in HANDOFF.md §9.
+Action — see the README "Production" section and ADR 0001.
 
 **Read these before changing anything — do not duplicate their content here:**
 
 | Doc | What it is | When you need it |
 |---|---|---|
-| [HANDOFF.md](./HANDOFF.md) | The spec: intent, data schema (§3), API contract (§6.4), the **jalon roadmap (§9)**, risks (§10) | Implementing any `TODO(jalon N)` — N is defined in §9 |
 | [CONTEXT.md](./CONTEXT.md) | Domain glossary (Observation, Convention, Révision, Rupture ISF→IFI…) | Any time a domain term's meaning matters |
 | [README.md](./README.md) | Human-facing overview + quick start | Onboarding context |
 | [docs/adr/](./docs/adr/) | Architecture decisions and *why* | Before reversing a structural choice |
@@ -112,9 +113,12 @@ Auto-fix formatting: `ruff format .` (Python) / `pnpm format` (frontend).
   values (`net`, `brut`, `menage`, `foyer_fiscal`, `redevables`, `top1`…), and the
   words `jalon` / `millésime`. Renaming any of these is a breaking migration across
   pipeline + backend + frontend, not a doc edit.
-- **The contract has two mirrors that must agree:** [backend/app/models.py](./backend/app/models.py)
-  (Pydantic) ↔ [frontend/src/api/types.ts](./frontend/src/api/types.ts) (TS).
-  Change one → change the other; both trace to HANDOFF.md §6.4.
+- **The contract _is_ the code, in two mirrors that must agree:**
+  [backend/app/models.py](./backend/app/models.py) (Pydantic) ↔
+  [frontend/src/api/types.ts](./frontend/src/api/types.ts) (TS). Change one → change
+  the other. Query-param / `422` semantics live in the FastAPI route signatures
+  ([backend/app/main.py](./backend/app/main.py)) and
+  [ADR 0002](./docs/adr/0002-series-endpoint-resolves-one-convention-one-millesime.md).
 - **Toolchain:** Python = ruff (lint + format) + mypy, target `py312` (config in
   [pyproject.toml](./pyproject.toml)). Frontend = Biome (lint + format) + strict
   `tsc` + Vitest (config in `frontend/biome.json`). Node is pinned to **24** in
@@ -132,16 +136,16 @@ Things the code won't tell you, that have already bitten this project:
 - **WID API key is sent verbatim.** `WID_API_KEY_B64` is base64 already; it goes
   into `x-api-key` **without re-encoding**. Re-encoding breaks auth. It is a public
   key that may rotate / be rate-limited → cache server-side, never call WID per
-  user request. (HANDOFF.md §8)
+  user request. (`.env.example`; `pipeline/netfetch.py` module docstring)
 - **Live network: WID validated; DGFiP parser done, no single URL.** As of 2026-06
   the **WID** API runs live in prod (real `WID 2026` Millésime). **DGFiP** parses
   real ISF/IFI workbooks (`pipeline/dgfip_parse.py`, jalon 6.5) with a download/parse
   → curated-CSV/points fallback. There is **no single IFI URL**: the 3 IFI national
   breakdowns live under stable `/node/` links and the frozen ISF 1999–2017 series
   under a data.gouv.fr resource, configured via the registry `DGFIP_SOURCE_URLS`
-  (`netfetch.dgfip_source_urls()`); only a live prod run of the fetch is still
-  pending (parser runs against locally-supplied files). INSEE is curated by design.
-  (HANDOFF.md §10)
+  (`netfetch.dgfip_source_urls()`; URLs in `.env.example`); only a live prod run of
+  the fetch is still pending (parser runs against locally-supplied files —
+  [#12](https://github.com/payouri/wealth-fr/issues/12)). INSEE is curated by design.
 - **Parquet preferred, CSV fallback.** The backend reads Parquet if present, else
   the cumulative CSV. The Parquet output now ships (**jalon 2** done); both files
   are gitignored — in production the data lives in a Coolify-managed `dataset`
@@ -149,9 +153,11 @@ Things the code won't tell you, that have already bitten this project:
 - **The reader-facing jalons are all landed.** Every API endpoint and frontend
   view that was once a `TODO(jalon N)` stub is now implemented (jalons 2–6, 8, 9);
   the `# TODO(jalon N)` comments left beside live handlers are provenance markers,
-  not stubs. What remains open is jalon 6.5's live prod DGFiP fetch run and the
-  data-coverage backlog — check HANDOFF.md §9/§10 before assuming something is
-  unfinished.
+  not stubs. What remains open is the live prod DGFiP fetch run
+  ([#12](https://github.com/payouri/wealth-fr/issues/12)) and the data-coverage
+  backlog ([#13](https://github.com/payouri/wealth-fr/issues/13)) — check the open
+  issues (roadmap epic [#2](https://github.com/payouri/wealth-fr/issues/2) is closed)
+  before assuming something is unfinished.
 - **Don't translate the schema identifiers** (see Conventions) — they are French
   on purpose.
 

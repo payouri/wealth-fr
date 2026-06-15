@@ -78,7 +78,7 @@ export const api = {
   /** Observations a source revised across millésimes (jalon 6). */
   revisions: () => get<RevisionDiff[]>("/revisions"),
 
-  /** Provenance + licence/attribution per source (jalon 8, HANDOFF §7). */
+  /** Provenance + licence/attribution per source (jalon 8; data in `data.py` `SOURCE_INFO`). */
   sources: () => get<SourceInfo[]>("/sources"),
 
   /** A direct download link for the filtered tidy rows (jalon 9). Returns a URL

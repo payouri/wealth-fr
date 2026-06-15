@@ -303,7 +303,7 @@ def load_dgfip(path: Path, extraction_date: str, millesime: str) -> pd.DataFrame
 
     Priorité : (1) workbook(s) Excel DGFiP réels — `path` étant un fichier ou un
     dossier (jalon 6.5) ; (2) sinon un CSV externe curé ; (3) sinon les points
-    pré-remplis DGFIP_POINTS (repli, cf. HANDOFF §10). Format CSV attendu :
+    pré-remplis DGFIP_POINTS (repli, cf. issue #12). Format CSV attendu :
         annee,concept,groupe,indicateur,valeur,unite_valeur,note
     """
     rows = _parse_dgfip_excels(path)
@@ -438,7 +438,7 @@ def write_outputs(df: pd.DataFrame, stem: str, append: bool, out_dir: Path) -> N
 
     # Parquet of the SAME cumulative dataframe — the backend's preferred fast
     # path (`_source_relation`); the CSV stays the canonical fallback. Same tidy
-    # schema, no transformation (HANDOFF §3, jalon 2).
+    # schema, no transformation (the tidy schema = `EXPORT_COLUMNS` in backend `app/data.py`; jalon 2).
     parquet_path = out_dir / f"{stem}.parquet"
     combined.to_parquet(parquet_path, index=False)
     print(f"[out] Parquet cumulatif : {parquet_path}  ({len(combined)} lignes au total)")
@@ -563,7 +563,7 @@ def main(argv=None) -> int:
     # n'est pas inscriptible en prod (conteneur non-root) ; seul le volume `out/`
     # l'est. Les sources sont éphémères : `load_dgfip` matérialise le DataFrame,
     # puis le temp est purgé. Échec réseau OU parsing -> repli sur le CSV curé /
-    # les points pré-remplis (HANDOFF §10).
+    # les points pré-remplis (issue #12).
     if args.download and netfetch is not None:
         urls = netfetch.dgfip_source_urls()
         if args.dgfip_url and args.dgfip_url not in urls:

@@ -218,7 +218,7 @@ def parse_isf_montants(path: Path) -> list[dict]:
     """Parse `isf_montants_declares_nombres_*.xls` -> ISF `nb_foyers` per year.
 
     Reads the `nombres` sheet, the "nombre de déclarations" row, across the year
-    columns of its header row. Fills the documented ISF≤2017 gap (HANDOFF §10).
+    columns of its header row. Fills the documented ISF≤2017 gap (issue #13).
     """
     xls = pd.ExcelFile(path)
     sheet = next((s for s in xls.sheet_names if str(s).strip().lower() == "nombres"), None)

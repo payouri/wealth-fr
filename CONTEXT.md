@@ -4,7 +4,7 @@ Glossary for a webapp that explores and visualizes the concentration of wealth i
 France since 2000, harmonizing three public sources whose measurement conventions
 are deliberately **not** interchangeable.
 
-> Domain terms below put the tidy data contract ([HANDOFF.md §3](./HANDOFF.md#3-data-model-the-tidy-schema)) into words. See [HANDOFF.md](./HANDOFF.md) for the full product brief.
+> Domain terms below put the tidy data contract into words. The contract itself is the code: the Pydantic models in [`backend/app/models.py`](./backend/app/models.py) and the tidy-column list in [`backend/app/data.py`](./backend/app/data.py), mirrored in [`frontend/src/api/types.ts`](./frontend/src/api/types.ts).
 
 ## Language
 

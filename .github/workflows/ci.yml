@@ -1,6 +1,6 @@
 # Continuous integration — runs the same gates documented in AGENTS.md so a green
 # CI run == a passing local Definition of Done. No secrets required (the live
-# WID/DGFiP integration is jalon 3; see HANDOFF.md §10).
+# WID/DGFiP integration runs in prod, not CI; see issue #12).
 name: ci
 
 on:

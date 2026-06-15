@@ -14,7 +14,7 @@ client = TestClient(app)
 def test_returns_each_source_with_licence_and_attribution():
     body = client.get("/api/sources").json()
     by_source = {s["source"]: s for s in body}
-    # All three Sources of the dataset are described (HANDOFF §7).
+    # All three Sources of the dataset are described (`SOURCE_INFO` in `app/data.py`).
     assert set(by_source) == {"WID", "INSEE", "DGFiP"}
     for info in body:
         assert info["url"].startswith("http")

@@ -45,3 +45,13 @@ plus a Scheduled Task that `docker exec`s the always-on `pipeline-runner`
 (`docker-compose.production.yml`) into a persistent `dataset` volume — which keeps
 generation off the deploy path exactly as this ADR intends. The original jalon
 reference (jalon 3) for live integration is now jalon 6.5.
+
+This also **reverses** the earlier plan (recorded in the now-closed roadmap epic
+[#2](https://github.com/payouri/wealth-fr/issues/2)) to *commit the dataset into the
+repo as versioned Millésime history*, refreshed by a GitHub Action. There is **no
+such Action**: the dataset (CSV + Parquet) is **not** versioned in the repo — the
+artifacts are gitignored and the **store of record is the Coolify `dataset` volume**
+on the server. We accepted losing in-repo Millésime history (the volume is the
+history) in exchange for keeping a few-thousand-row, frequently-refreshed dataset out
+of git and the network-dependent fetch off both the deploy and the CI path. The
+how-to lives in the README "Production" section.

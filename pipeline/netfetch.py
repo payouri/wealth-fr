@@ -113,7 +113,7 @@ def download_sources(urls: list[str], dest_dir: Path, timeout=120) -> list[Path]
     """Download every DGFiP source URL into `dest_dir`; return the written paths.
 
     Individual failures are reported and skipped (the loader falls back to the
-    curated CSV / pre-filled points when nothing parses — HANDOFF §10).
+    curated CSV / pre-filled points when nothing parses — issue #12).
     """
     dest_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
