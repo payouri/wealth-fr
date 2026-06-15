@@ -12,9 +12,9 @@ import csv
 import io
 import re
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from . import data
 from .models import Meta, RevisionDiff, Series, SourceInfo
@@ -32,6 +32,19 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(data.AmbiguousConvention)
+async def _ambiguous_convention(_: Request, exc: Exception) -> JSONResponse:
+    """Map the Convention guard rail to one 422 "pick a Convention" for every
+    endpoint that resolves a query (series, compare, export.csv) — never merge
+    Conventions silently. Keeps the body shape the frontend's ApiError reads
+    (`detail.error` / `detail.choices`)."""
+    assert isinstance(exc, data.AmbiguousConvention)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": {"error": "ambiguous_convention", "choices": exc.choices}},
+    )
 
 
 @app.get("/api/health")
@@ -60,25 +73,20 @@ def series(
 
     `concept` is part of the required contract (the frontend always sends it);
     the backend additionally guards: if filters still span more than one
-    Convention, it returns 422 with the available choices rather than merging.
+    Convention, it returns 422 with the available choices rather than merging
+    (handled centrally by `_ambiguous_convention`).
     """
-    try:
-        return data.get_series(
-            source=source,
-            indicateur=indicateur,
-            groupe=groupe,
-            concept=concept,
-            unite=unite,
-            annee_min=annee_min,
-            annee_max=annee_max,
-            euros_constants=euros_constants,
-            millesime=millesime,
-        )
-    except data.AmbiguousConvention as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={"error": "ambiguous_convention", "choices": exc.choices},
-        ) from exc
+    return data.get_series(
+        source=source,
+        indicateur=indicateur,
+        groupe=groupe,
+        concept=concept,
+        unite=unite,
+        annee_min=annee_min,
+        annee_max=annee_max,
+        euros_constants=euros_constants,
+        millesime=millesime,
+    )
 
 
 @app.get("/api/compare", response_model=list[Series])
@@ -90,13 +98,7 @@ def compare(indicateur: str, groupe: str, sources: str):
     422 "pick a Convention" contract as /api/series.
     """
     source_list = [s.strip() for s in sources.split(",") if s.strip()]
-    try:
-        return data.get_compare(indicateur=indicateur, groupe=groupe, sources=source_list)
-    except data.AmbiguousConvention as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={"error": "ambiguous_convention", "choices": exc.choices},
-        ) from exc
+    return data.get_compare(indicateur=indicateur, groupe=groupe, sources=source_list)
 
 
 @app.get("/api/revisions", response_model=list[RevisionDiff])
@@ -126,25 +128,19 @@ def export_csv(
 
     Reuses the jalon-3 resolver (`resolve_rows`), so the export is exactly the
     rows the chart was drawn from — same Convention guard, same single-Millésime
-    pick, same 422 "pick a Convention" contract.
+    pick, same 422 "pick a Convention" contract (handled centrally).
     """
-    try:
-        rows = data.get_export_rows(
-            source=source,
-            indicateur=indicateur,
-            groupe=groupe,
-            concept=concept,
-            unite=unite,
-            annee_min=annee_min,
-            annee_max=annee_max,
-            euros_constants=euros_constants,
-            millesime=millesime,
-        )
-    except data.AmbiguousConvention as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={"error": "ambiguous_convention", "choices": exc.choices},
-        ) from exc
+    rows = data.get_export_rows(
+        source=source,
+        indicateur=indicateur,
+        groupe=groupe,
+        concept=concept,
+        unite=unite,
+        annee_min=annee_min,
+        annee_max=annee_max,
+        euros_constants=euros_constants,
+        millesime=millesime,
+    )
 
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=data.EXPORT_COLUMNS)
