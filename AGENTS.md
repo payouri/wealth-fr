@@ -96,7 +96,7 @@ Per-component gates (the `<tool>` for Python lives in `backend/.venv/bin/`):
 
 | Component | Lint | Format check | Types | Tests |
 |---|---|---|---|---|
-| Python (`pipeline/`, `backend/`) | `ruff check .` | `ruff format --check .` | `mypy` | `cd backend && pytest` |
+| Python (`pipeline/`, `backend/`) | `ruff check .` | `ruff format --check .` | `mypy` | `cd backend && .venv/bin/pytest` |
 | Frontend (`frontend/`) | `pnpm lint` | (Biome, same as lint) | `pnpm typecheck` | `pnpm test` |
 
 Auto-fix formatting: `ruff format .` (Python) / `pnpm format` (frontend).
