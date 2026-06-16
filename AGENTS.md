@@ -12,9 +12,11 @@ measurement **Conventions are not interchangeable**. All reader-facing surfaces
 are now implemented: the Python pipeline, the backend (`/api/meta`, `/api/series`,
 `/api/compare`, `/api/revisions`, `/api/sources`, `/api/export.csv`), and the
 frontend (Dashboard, Comparison, Sources & méthodologie) are real (jalons 2–6, 8,
-9). The only work not closed is the **live prod run of the DGFiP
-registry fetch** ([#12](https://github.com/payouri/wealth-fr/issues/12)) and the
-data-coverage backlog ([#13](https://github.com/payouri/wealth-fr/issues/13)); the
+9). The DGFiP registry fetch now runs live in prod too (a real `DGFiP 2026`
+millésime sits alongside `WID 2026` in the Coolify `dataset` volume —
+[#12](https://github.com/payouri/wealth-fr/issues/12) closed). The only work not
+closed is the data-coverage backlog
+([#13](https://github.com/payouri/wealth-fr/issues/13)); the
 roadmap epic [#2](https://github.com/payouri/wealth-fr/issues/2) is closed. Scheduled
 refresh (former jalon 7) is realised as a **Coolify Scheduled Task**, not a GitHub
 Action — see the README "Production" section and ADR 0001.
@@ -137,15 +139,15 @@ Things the code won't tell you, that have already bitten this project:
   into `x-api-key` **without re-encoding**. Re-encoding breaks auth. It is a public
   key that may rotate / be rate-limited → cache server-side, never call WID per
   user request. (`.env.example`; `pipeline/netfetch.py` module docstring)
-- **Live network: WID validated; DGFiP parser done, no single URL.** As of 2026-06
-  the **WID** API runs live in prod (real `WID 2026` Millésime). **DGFiP** parses
-  real ISF/IFI workbooks (`pipeline/dgfip_parse.py`, jalon 6.5) with a download/parse
-  → curated-CSV/points fallback. There is **no single IFI URL**: the 3 IFI national
+- **Live network: WID + DGFiP both run live, no single URL.** As of 2026-06 the
+  **WID** API runs live in prod (real `WID 2026` Millésime). **DGFiP** also now runs
+  live in prod ([#12](https://github.com/payouri/wealth-fr/issues/12) closed): the
+  registry lot downloads and `pipeline/dgfip_parse.py` (jalon 6.5) parses the real
+  ISF/IFI workbooks into a `DGFiP 2026` Millésime, with a download/parse →
+  curated-CSV/points fallback. There is **no single IFI URL**: the 3 IFI national
   breakdowns live under stable `/node/` links and the frozen ISF 1999–2017 series
   under a data.gouv.fr resource, configured via the registry `DGFIP_SOURCE_URLS`
-  (`netfetch.dgfip_source_urls()`; URLs in `.env.example`); only a live prod run of
-  the fetch is still pending (parser runs against locally-supplied files —
-  [#12](https://github.com/payouri/wealth-fr/issues/12)). INSEE is curated by design.
+  (`netfetch.dgfip_source_urls()`; URLs in `.env.example`). INSEE is curated by design.
 - **Parquet preferred, CSV fallback.** The backend reads Parquet if present, else
   the cumulative CSV. The Parquet output now ships (**jalon 2** done); both files
   are gitignored — in production the data lives in a Coolify-managed `dataset`
@@ -153,8 +155,7 @@ Things the code won't tell you, that have already bitten this project:
 - **The reader-facing jalons are all landed.** Every API endpoint and frontend
   view that was once a `TODO(jalon N)` stub is now implemented (jalons 2–6, 8, 9);
   the `# TODO(jalon N)` comments left beside live handlers are provenance markers,
-  not stubs. What remains open is the live prod DGFiP fetch run
-  ([#12](https://github.com/payouri/wealth-fr/issues/12)) and the data-coverage
+  not stubs. What remains open is the data-coverage
   backlog ([#13](https://github.com/payouri/wealth-fr/issues/13)) — check the open
   issues (roadmap epic [#2](https://github.com/payouri/wealth-fr/issues/2) is closed)
   before assuming something is unfinished.
