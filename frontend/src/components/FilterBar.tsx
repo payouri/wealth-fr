@@ -1,4 +1,5 @@
 import type { ConventionChoice, Meta } from "@/api/types";
+import GroupeSelect from "@/components/GroupeSelect";
 import {
   Select,
   SelectContent,
@@ -12,6 +13,7 @@ import type { DashboardParams } from "@/hooks/useDashboardParams";
 import {
   CONCEPT_LABEL,
   groupeLabel,
+  groupeOptions,
   indicateurMeta,
   SHARE_GROUPES,
   SOURCE_CONVENTION,
@@ -67,6 +69,11 @@ export default function FilterBar({
   const sourceIndicateurs = Object.keys(byIndicateur);
   const sourceGroupes = byIndicateur[params.indicateur] ?? [];
   const shareFocus = SHARE_GROUPES.filter((g) => sourceGroupes.includes(g));
+  // When no groupe is pinned, fall back to the first CURATED option (not the raw
+  // availability head, which for a top-tail series is a WID lattice code the select
+  // never offers and which would render the trigger blank — issue #15).
+  const curatedGroupeFallback =
+    groupeOptions(meta, params.source, params.indicateur)[0]?.options[0]?.value ?? sourceGroupes[0];
   const uniteText = resolved?.unite
     ? (UNITE_LABEL[resolved.unite] ?? resolved.unite)
     : "dérivée de la source";
@@ -157,21 +164,15 @@ export default function FilterBar({
             </Field>
           ) : (
             <Field label="Groupe" htmlFor="f-groupe">
-              <Select
-                value={params.groupe || sourceGroupes[0]}
+              <GroupeSelect
+                meta={meta}
+                source={params.source}
+                indicateur={params.indicateur}
+                value={params.groupe || curatedGroupeFallback}
                 onValueChange={(v) => update({ groupe: v })}
-              >
-                <SelectTrigger className="w-48" aria-labelledby="f-groupe">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {sourceGroupes.map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {groupeLabel(g)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                labelledBy="f-groupe"
+                className="w-56"
+              />
             </Field>
           )}
 

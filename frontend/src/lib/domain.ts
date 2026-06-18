@@ -5,7 +5,7 @@
 // Encoding rule (DESIGN.md §2): meaning never rests on hue alone. Every series
 // pairs a colour with a dash pattern and a direct end-of-line label, so it
 // survives colourblindness and greyscale.
-import type { Concept, Source } from "@/api/types";
+import type { Concept, Meta, Source } from "@/api/types";
 
 export const SOURCE_LABEL: Record<string, string> = {
   WID: "WID.world",
@@ -48,14 +48,149 @@ export const GROUPE_LABEL: Record<string, string> = {
   mediane: "Médiane",
   redevables: "Redevables",
   patrimoine_sup_10M: "Patrimoine > 10 M€",
-  // Déciles namespaced by ranking variable (CONTEXT.md). Static fallbacks; #15
-  // will compose decile labels dynamically.
-  decile_patrimoine_1: "Décile 1 de patrimoine (le plus faible)",
-  decile_patrimoine_9: "Décile 9 de patrimoine",
 };
 
-export function groupeLabel(g: string): string {
+// Standalone groups (neither a concentration fraction nor part of a numbered
+// family). Offered ungrouped at the top of a curated select, in this order.
+const STANDALONE_GROUPES = ["redevables", "patrimoine_sup_10M"] as const;
+
+// The DGFiP numbered families, namespaced by the variable ranked on (CONTEXT.md).
+// `decile_<var>_<n>` and `tranche_marginale_<n>` carry an index that is a data
+// fact; the label is composed from it (and, for tranches, from `meta.tranche_taux`).
+const DECILE_VAR_LABEL: Record<string, string> = {
+  patrimoine: "patrimoine",
+  rfr: "revenu",
+};
+
+// Family headers (French, editorial — issue #15) for the grouped Groupe select.
+const FAMILY_HEADER = {
+  decile_patrimoine: "Patrimoine",
+  decile_rfr: "Revenu fiscal (RFR)",
+  tranche_marginale: "Tranche marginale d'imposition",
+} as const;
+
+const DECILE_RE = /^decile_(patrimoine|rfr)_(\d+)$/;
+const TRANCHE_RE = /^tranche_marginale_(\d+)$/;
+
+const rateFmt = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
+
+/** French display label for a groupe code. Static fractions are looked up; the
+ *  DGFiP numbered families are composed from the index (and, for tranches, the
+ *  marginal rate threaded via `meta.tranche_taux`). A non-curated code (e.g. a raw
+ *  WID percentile bracket reached from a hand-typed URL) falls back to itself, so
+ *  deep links keep resolving (issue #15). */
+export function groupeLabel(g: string, meta?: Pick<Meta, "tranche_taux">): string {
+  const decile = DECILE_RE.exec(g);
+  if (decile) {
+    const variable = DECILE_VAR_LABEL[decile[1]];
+    const n = Number(decile[2]);
+    // Annotation keys off the FIXED index, never the position in the list: a
+    // missing 10th décile leaves the 9th simply unannotated, never mislabelled.
+    const extreme = n === 1 ? " (le plus faible)" : n === 10 ? " (le plus élevé)" : "";
+    return `Décile ${n} de ${variable}${extreme}`;
+  }
+  const tranche = TRANCHE_RE.exec(g);
+  if (tranche) {
+    const taux = meta?.tranche_taux?.[g];
+    if (taux != null) return `Tranche à ${rateFmt.format(taux)} %`;
+    return GROUPE_LABEL[g] ?? g; // no rate known → raw fallback (deep-link safe)
+  }
   return GROUPE_LABEL[g] ?? g;
+}
+
+// Canonical ordered concentration fractions offered by the Groupe selects, nested
+// from the whole population down to the very top (issue #15). `top5` (added with
+// INSEE's ingested top5 share, #14) sits between top10 and top1. The ~290 fine WID
+// percentile brackets stay in the data and in /api/meta, but are never OFFERED.
+export const CONCENTRATION_GROUPES = [
+  "ensemble",
+  "bottom50",
+  "middle40",
+  "top50",
+  "top10",
+  "top5",
+  "top1",
+  "top0_1",
+] as const;
+
+export interface GroupeOption {
+  value: string;
+  label: string;
+}
+
+/** One block of options in a curated Groupe select. `header` null → ungrouped
+ *  (standalone or the concentration family); otherwise a screen-reader-announced
+ *  family header (shadcn SelectGroup/SelectLabel). */
+export interface GroupeOptionGroup {
+  header: string | null;
+  options: GroupeOption[];
+}
+
+/** The ordered, grouped, human-readable option model a non-share Groupe select
+ *  renders — curation is presentation-only (issue #15): /api/meta still returns the
+ *  full groupes/availability, and any underlying figure stays reachable by URL.
+ *
+ *  Standalone groups (`redevables`, `patrimoine_sup_10M`) come first, ungrouped.
+ *  Concentration fractions are the canonical set ∩ what this (source, indicateur)
+ *  measures, dropping the raw percentile lattice. The DGFiP numbered families are
+ *  kept in full, numerically sorted, under a family header each.
+ *
+ *  `active` is the currently-selected groupe. The curation deliberately drops the
+ *  WID percentile lattice, but `validComboForSource` can snap a non-share groupe to
+ *  a lattice code (the source's first available groupe) — or a deep link may hold
+ *  one. So when `active` is set but not among the curated options, it is appended as
+ *  an ungrouped fallback (labelled via `groupeLabel`), so the trigger never renders
+ *  blank and the code the reader actually has stays visible and re-selectable. */
+export function groupeOptions(
+  meta: Meta,
+  source: string,
+  indicateur: string,
+  active?: string,
+): GroupeOptionGroup[] {
+  const available = new Set(meta.availability?.[source]?.[indicateur] ?? []);
+  const groups: GroupeOptionGroup[] = [];
+
+  const standalone = STANDALONE_GROUPES.filter((g) => available.has(g));
+  if (standalone.length > 0) {
+    groups.push({
+      header: null,
+      options: standalone.map((g) => ({ value: g, label: groupeLabel(g, meta) })),
+    });
+  }
+
+  const concentration = CONCENTRATION_GROUPES.filter((g) => available.has(g));
+  if (concentration.length > 0) {
+    groups.push({
+      header: null,
+      options: concentration.map((g) => ({ value: g, label: groupeLabel(g, meta) })),
+    });
+  }
+
+  // DGFiP numbered families, numerically sorted by their index (1, 2, …10 — not the
+  // lexical 1, 10, 2), under one family header each, in the canonical family order.
+  for (const family of ["decile_patrimoine", "decile_rfr", "tranche_marginale"] as const) {
+    const members = [...available]
+      .filter((g) => g.startsWith(`${family}_`))
+      .map((g) => ({ g, n: Number(g.slice(g.lastIndexOf("_") + 1)) }))
+      .filter((m) => Number.isFinite(m.n))
+      .sort((a, b) => a.n - b.n);
+    if (members.length > 0) {
+      groups.push({
+        header: FAMILY_HEADER[family],
+        options: members.map(({ g }) => ({ value: g, label: groupeLabel(g, meta) })),
+      });
+    }
+  }
+
+  // Belt-and-suspenders: keep the active selection offered. If a non-curated code
+  // (e.g. a WID lattice bracket snapped in by `validComboForSource`, or a deep link)
+  // is selected but absent from every block above, append it ungrouped so the
+  // trigger stays legible and the value stays re-selectable (issue #15).
+  if (active && !groups.some((grp) => grp.options.some((o) => o.value === active))) {
+    groups.push({ header: null, options: [{ value: active, label: groupeLabel(active, meta) }] });
+  }
+
+  return groups;
 }
 
 // The dashboard's headline: the three top shares, plotted together on one axis.

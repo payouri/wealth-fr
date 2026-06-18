@@ -2,7 +2,7 @@
 // Both vintages are shown side by side with their extraction dates — the
 // append-only historisation made visible, never an overwrite (Principle 3).
 import { ArrowRight } from "lucide-react";
-import type { RevisionDiff } from "@/api/types";
+import type { Meta, RevisionDiff } from "@/api/types";
 import { conventionLabel, groupeLabel, indicateurMeta } from "@/lib/domain";
 import { revisionDelta } from "@/lib/revisions";
 
@@ -20,7 +20,14 @@ function fmtDate(iso: string): string {
     : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export default function RevisionsTable({ revisions }: { revisions: RevisionDiff[] }) {
+export default function RevisionsTable({
+  revisions,
+  meta,
+}: {
+  revisions: RevisionDiff[];
+  /** Carries `tranche_taux` so a revised tranche reads by its rate (issue #15). */
+  meta?: Meta;
+}) {
   if (revisions.length === 0) {
     return (
       <p className="rounded-md border border-border bg-secondary px-4 py-3 text-sm text-muted-foreground">
@@ -69,7 +76,7 @@ export default function RevisionsTable({ revisions }: { revisions: RevisionDiff[
                   </p>
                   <p className="text-label text-muted-foreground">
                     {conventionLabel(rev.source, rev.unite, rev.concept_patrimoine)} ·{" "}
-                    {groupeLabel(rev.groupe)}
+                    {groupeLabel(rev.groupe, meta)}
                   </p>
                 </td>
                 <td className="py-3 pr-4">

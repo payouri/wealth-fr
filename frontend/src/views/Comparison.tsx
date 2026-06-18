@@ -27,6 +27,7 @@ import { useComparisonParams } from "@/hooks/useComparisonParams";
 import { buildComparisonLines } from "@/lib/comparison";
 import {
   COMPARABLE_INDICATEURS,
+  CONCENTRATION_GROUPES,
   groupeLabel,
   indicateurMeta,
   SOURCE_CONVENTION,
@@ -67,9 +68,21 @@ export default function Comparison() {
   const meta = metaQ.data;
 
   const isGini = params.indicateur === "gini";
-  // Gini is a single whole-distribution index; shares are by fraction.
-  const groupeOptions = isGini ? ["ensemble"] : (meta?.groupes ?? []);
+  // Gini is a single whole-distribution index; shares are by concentration
+  // fraction. The picker offers the curated, human-readable concentration set
+  // (issue #15) ∩ what the data actually carries — never the raw WID percentile
+  // lattice. Any underlying bracket stays reachable by a hand-typed URL.
+  const curatedGroupes = isGini
+    ? ["ensemble"]
+    : CONCENTRATION_GROUPES.filter((g) => (meta?.groupes ?? []).includes(g));
   const activeGroupe = isGini ? "ensemble" : params.groupe;
+  // Keep the active groupe offered: a deep link may hold a non-curated/lattice code
+  // the curated set drops, which would leave the trigger blank (issue #15). Append
+  // it (ungrouped, last) so it stays visible and re-selectable.
+  const groupeOptions =
+    activeGroupe && !curatedGroupes.includes(activeGroupe)
+      ? [...curatedGroupes, activeGroupe]
+      : curatedGroupes;
 
   // Switching to Gini forces the only meaningful groupe, so the URL never holds a
   // groupe that can't exist for the indicateur.
@@ -202,7 +215,7 @@ export default function Comparison() {
               disabled={isGini}
             >
               <SelectTrigger className="w-48 pointer-coarse:min-h-11" aria-labelledby="c-groupe">
-                <SelectValue />
+                <SelectValue placeholder="Choisir un groupe" />
               </SelectTrigger>
               <SelectContent>
                 {groupeOptions.map((g) => (
