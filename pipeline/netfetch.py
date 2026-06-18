@@ -12,6 +12,9 @@ WID  : API officielle (même endpoint que l'outil R officiel)
        (Le repli sur fichier local data/WID_data_FR.csv ne nécessite PAS de clef.)
 
 DGFiP: téléchargement direct du fichier Excel publié (aucune clef requise).
+
+INSEE: API Melodi publique (sans clef) — archive CSV groupée (données + métadonnées)
+       du jeu DS_ENQPAT_DET (agrégats HVP), parsée par `insee_parse` (issue #14).
 """
 
 from __future__ import annotations
@@ -90,6 +93,45 @@ def dgfip_source_urls() -> list[str]:
     if legacy and legacy not in urls:
         urls.append(legacy)
     return urls
+
+
+# INSEE Melodi (issue #14) — the HVP wealth aggregates. The dataset id is the
+# only thing that changes if INSEE renames the dataset, so it lives in an
+# env-overridable registry (mirrors `dgfip_source_urls`). Public, unauthenticated,
+# rate-limited ~30 req/min. The bundled CSV archive (data + metadata) is one
+# request; `insee_parse` parses it. No single-row API call per user request.
+INSEE_MELODI_BASE = "https://api.insee.fr/melodi/"
+INSEE_MELODI_DATASET_DEFAULT = "DS_ENQPAT_DET"
+
+
+def insee_melodi_dataset() -> str:
+    """The Melodi dataset id, `INSEE_MELODI_DATASET`-overridable (issue #14)."""
+    return os.environ.get("INSEE_MELODI_DATASET", "").strip() or INSEE_MELODI_DATASET_DEFAULT
+
+
+def download_insee_melodi(dataset: str | None = None, dest_dir: Path | None = None, timeout=120):
+    """Download the bundled Melodi CSV archive (data + metadata) for `dataset`.
+
+    Returns the written archive Path, or None on failure (so the loader falls back
+    to a cached file / the curated stub). The network layer is kept thin and is
+    NOT exercised against the live API in CI — correctness lives in `insee_parse`
+    against synthetic/cached inputs (same posture as WID).
+    """
+    dataset = dataset or insee_melodi_dataset()
+    dest_dir = dest_dir or Path(".")
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    url = f"{INSEE_MELODI_BASE}file/{dataset}"
+    try:
+        r = _http_get(url, timeout=timeout, stream=True)
+        dest = dest_dir / f"{dataset}.zip"
+        with open(dest, "wb") as f:
+            for chunk in r.iter_content(chunk_size=65536):
+                f.write(chunk)
+        print(f"[INSEE] téléchargé : {url} -> {dest.name}")
+        return dest
+    except Exception as e:  # noqa: BLE001 — on log et on continue (repli loader)
+        print(f"[INSEE] échec téléchargement {url} ({e}). Repli sur fichier/stub.")
+        return None
 
 
 def _dest_filename(url: str, resp: requests.Response, fallback_stem: str) -> str:

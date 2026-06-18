@@ -3,7 +3,17 @@
 
 export type Source = "WID" | "INSEE" | "DGFiP";
 export type Unite = "adulte" | "menage" | "foyer_fiscal";
-export type Concept = "net" | "brut" | "total" | "immobilier";
+// INSEE spans four Conventions: the all-inclusive `brut`/`net` and the *hors reste*
+// variants, which exclude INSEE's residual asset category and are a different
+// quantity — never merged with the all-inclusive ones (CONTEXT.md "Reste / hors
+// reste"). `total`/`immobilier` are DGFiP's ISF/IFI Concepts.
+export type Concept =
+  | "net"
+  | "brut"
+  | "brut_hors_reste"
+  | "net_hors_reste"
+  | "total"
+  | "immobilier";
 export type Indicateur =
   | "part_patrimoine"
   | "gini"
