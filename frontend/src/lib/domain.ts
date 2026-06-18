@@ -39,13 +39,19 @@ export const UNITE_LABEL: Record<string, string> = {
 export const GROUPE_LABEL: Record<string, string> = {
   ensemble: "Ensemble",
   top10: "Top 10 %",
+  top5: "Top 5 %",
   top1: "Top 1 %",
   top0_1: "Top 0,1 %",
   top50: "Top 50 %",
   bottom50: "Bottom 50 %",
   middle40: "Milieu 40 %",
+  mediane: "Médiane",
   redevables: "Redevables",
   patrimoine_sup_10M: "Patrimoine > 10 M€",
+  // Déciles namespaced by ranking variable (CONTEXT.md). Static fallbacks; #15
+  // will compose decile labels dynamically.
+  decile_patrimoine_1: "Décile 1 de patrimoine (le plus faible)",
+  decile_patrimoine_9: "Décile 9 de patrimoine",
 };
 
 export function groupeLabel(g: string): string {
@@ -53,7 +59,7 @@ export function groupeLabel(g: string): string {
 }
 
 // The dashboard's headline: the three top shares, plotted together on one axis.
-export const SHARE_GROUPES = ["top10", "top1", "top0_1"] as const;
+export const SHARE_GROUPES = ["top10", "top5", "top1", "top0_1"] as const;
 
 // Only dimensionless indicateurs may be compared across Sources: their shapes are
 // comparable even when the underlying Unités are not (ADR 0003). Euro levels are
@@ -64,6 +70,7 @@ export const COMPARABLE_INDICATEURS = ["part_patrimoine", "gini"] as const;
 // distinct Okabe-Ito hues; the dash pattern is the redundant, hue-free cue.
 export const GROUPE_ENCODING: Record<string, { color: string; dash: string }> = {
   top10: { color: "var(--color-chart-1)", dash: "0" }, // solid
+  top5: { color: "var(--color-chart-5)", dash: "4 3" }, // short-dash (INSEE)
   top1: { color: "var(--color-chart-2)", dash: "7 4" }, // dashed
   top0_1: { color: "var(--color-chart-4)", dash: "2 4" }, // dotted
 };

@@ -29,9 +29,10 @@ the pipeline deflates them itself to the project base, alongside the nominal row
 from __future__ import annotations
 
 import csv
-import tempfile
+import io
 import zipfile
 from pathlib import Path
+from typing import IO
 
 # The data file is recognised by its value column; whichever CSV in the bundle
 # carries it is the data file, the other is the metadata codelist. Identifying by
@@ -105,14 +106,20 @@ _MEDIAN_CONCEPT: dict[str, str] = {
 }
 
 # Decile-threshold measures -> concept; the groupe comes from the QUANTILE
-# boundary point. Also `seuil`, with the `decile_1`/`decile_9` groupes.
+# boundary point. Also `seuil`, with the `decile_patrimoine_1`/`decile_patrimoine_9`
+# groupes. Déciles are namespaced by their ranking variable (CONTEXT.md:43): INSEE
+# ranks by wealth (QUANTILE_MEASURE = PATBRUT), so the groupe is `decile_patrimoine_n`,
+# never the bare `decile_n` (matches DGFiP and #15's labelling).
 _SEUIL_CONCEPT: dict[str, str] = {
     "MT_SEUIL_PATBRUT": "brut",
     "MT_SEUIL_PATBRUT_HR": "brut_hors_reste",
     "MT_SEUIL_PATNET": "net",
     "MT_SEUIL_PATNET_HR": "net_hors_reste",
 }
-_QUANTILE_DECILE_GROUPE: dict[str, str] = {"D1": "decile_1", "D9": "decile_9"}
+_QUANTILE_DECILE_GROUPE: dict[str, str] = {
+    "D1": "decile_patrimoine_1",
+    "D9": "decile_patrimoine_9",
+}
 
 
 def _unite_valeur(indicateur: str) -> str:
@@ -152,72 +159,111 @@ def parse_melodi_archive(archive_path: Path) -> list[dict]:
     """Parse a bundled Melodi CSV archive (one data file + one metadata file).
 
     Locates the two CSVs by content (the data file carries ``OBS_VALUE_NIVEAU``),
-    so it survives Melodi renaming the members. Returns [] for a non-zip or an
-    archive missing the data file, so a caller can fall through to its fallback.
+    so it survives Melodi renaming the members. Sniffs each member's head without
+    inflating the whole file, then streams the chosen members straight from the zip
+    (no double-decompress, no tempdir). Returns [] for a non-zip or an archive
+    missing the data file, so a caller can fall through to its fallback.
+
+    Discrimination is deterministic: the member whose head carries the data marker
+    is the data file, the other is the metadata codelist. An ambiguous archive
+    (both members carry the marker, or only one CSV is present at all) raises rather
+    than silently dropping the metadata or returning [] — that would mask a broken
+    download behind the curated-stub fallback.
     """
     if not zipfile.is_zipfile(archive_path):
         return []
-    with zipfile.ZipFile(archive_path) as z, tempfile.TemporaryDirectory() as tmp:
+    with zipfile.ZipFile(archive_path) as z:
         members = [m for m in z.namelist() if m.lower().endswith(".csv")]
-        data_member = meta_member = None
+        data_members: list[str] = []
+        meta_members: list[str] = []
         for m in members:
-            header = z.read(m)[:4096].decode("utf-8", errors="replace")
-            if _DATA_MARKER in header:
-                data_member = m
-            else:
-                meta_member = m
-        if data_member is None:
+            with z.open(m) as fh:
+                head = fh.read(4096).decode("utf-8", errors="replace")
+            (data_members if _DATA_MARKER in head else meta_members).append(m)
+
+        if not data_members:
             return []
-        data_path = Path(z.extract(data_member, tmp))
-        meta_path = Path(z.extract(meta_member, tmp)) if meta_member else data_path
-        return parse_melodi_csv(data_path, meta_path)
+        if len(data_members) > 1:
+            raise ValueError(
+                f"Ambiguous Melodi archive {archive_path.name}: "
+                f"{len(data_members)} members carry the data marker {_DATA_MARKER!r}"
+            )
+        data_member = data_members[0]
+        meta_member = meta_members[0] if meta_members else None
+
+        with z.open(data_member) as data_fh:
+            data_text = io.TextIOWrapper(data_fh, encoding="utf-8")
+            if meta_member is None:
+                return parse_melodi_csv(data_text, None)
+            with z.open(meta_member) as meta_fh:
+                meta_text = io.TextIOWrapper(meta_fh, encoding="utf-8")
+                return parse_melodi_csv(data_text, meta_text)
 
 
-def _load_labels(meta_path: Path) -> dict[str, str]:
+def _load_labels(meta: Path | IO[str] | None) -> dict[str, str]:
     """Decode the bundled metadata (codelist) into {code: label}. Reading the
     labels from the dataset's own metadata — rather than hard-coding them — keeps
     the decode surviving upstream code additions (issue #14). Tolerant of a missing
-    or oddly-shaped file (returns {} so the parser still emits rows)."""
+    or oddly-shaped file (returns {} so the parser still emits rows). Accepts a path
+    or an already-open text stream (the archive seam streams from the zip)."""
     labels: dict[str, str] = {}
-    if not meta_path.exists():
+    if meta is None:
         return labels
-    with open(meta_path, encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            code = (row.get("code") or "").strip()
-            label = (row.get("label") or "").strip()
-            if code:
-                labels[code] = label
+    if isinstance(meta, Path):
+        if not meta.exists():
+            return labels
+        with open(meta, encoding="utf-8") as f:
+            return _read_labels(f)
+    return _read_labels(meta)
+
+
+def _read_labels(f: IO[str]) -> dict[str, str]:
+    labels: dict[str, str] = {}
+    for row in csv.DictReader(f):
+        code = (row.get("code") or "").strip()
+        label = (row.get("label") or "").strip()
+        if code:
+            labels[code] = label
     return labels
 
 
-def parse_melodi_csv(data_path: Path, meta_path: Path) -> list[dict]:
-    """Parse a Melodi data CSV (+ metadata codelist) into tidy Observations."""
-    labels = _load_labels(meta_path)
+def parse_melodi_csv(data: Path | IO[str], meta: Path | IO[str] | None) -> list[dict]:
+    """Parse a Melodi data CSV (+ metadata codelist) into tidy Observations.
+
+    ``data``/``meta`` accept either a filesystem path or an already-open text
+    stream, so the archive seam can stream members straight from the zip without a
+    double-decompress or a tempdir."""
+    labels = _load_labels(meta)
+    if isinstance(data, Path):
+        with open(data, encoding="utf-8") as f:
+            return _parse_rows(f, labels)
+    return _parse_rows(data, labels)
+
+
+def _parse_rows(f: IO[str], labels: dict[str, str]) -> list[dict]:
     rows: list[dict] = []
-    with open(data_path, encoding="utf-8") as f:
-        for obs in csv.DictReader(f):
-            if obs.get("QUANTILE_MEASURE") != _WEALTH_RANKING:
-                continue
-            if not _is_national_current(obs):
-                continue
-            measure = obs.get("ENQPAT_MEASURE", "")
-            classified = _classify(measure, obs.get("QUANTILE", ""))
-            if classified is None:
-                continue
-            indicateur, concept, groupe = classified
-            value = obs.get("OBS_VALUE_NIVEAU")
-            if not value:  # blank / missing -> skip (also narrows away None)
-                continue
-            rows.append(
-                _row(
-                    int(obs["TIME_PERIOD"]),
-                    concept,
-                    groupe,
-                    indicateur,
-                    float(value),
-                    labels.get(measure, ""),
-                )
-            )
+    for obs in csv.DictReader(f):
+        if obs.get("QUANTILE_MEASURE") != _WEALTH_RANKING:
+            continue
+        if not _is_national_current(obs):
+            continue
+        measure = obs.get("ENQPAT_MEASURE", "")
+        classified = _classify(measure, obs.get("QUANTILE", ""))
+        if classified is None:
+            continue
+        indicateur, concept, groupe = classified
+        value = obs.get("OBS_VALUE_NIVEAU")
+        if not value:  # blank / missing -> skip (also narrows away None)
+            continue
+        # A malformed/blank/renamed year or value in a live Melodi response must
+        # skip the row, never abort the build — that defeats the 3-tier fallback.
+        # Mirrors the conversion guard in netfetch.fetch_wid.
+        try:
+            annee = int(obs["TIME_PERIOD"])
+            valeur = float(value)
+        except (KeyError, ValueError, TypeError):
+            continue
+        rows.append(_row(annee, concept, groupe, indicateur, valeur, labels.get(measure, "")))
     return rows + _derive_bottom50(rows)
 
 

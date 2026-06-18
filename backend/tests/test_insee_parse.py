@@ -243,8 +243,10 @@ def test_mean_amounts_carry_their_concept_and_only_nominal_is_kept(tmp_path: Pat
 
 def test_median_and_decile_thresholds_become_seuil_groupes(tmp_path: Path) -> None:
     """Median and decile thresholds reuse the ``seuil`` indicateur (matching WID's
-    threshold mapping), with the new groupes ``mediane``/``decile_1``/``decile_9``.
-    A net median exists as a levels-only series (no net Gini/share in this dataset)."""
+    threshold mapping), with the new groupes
+    ``mediane``/``decile_patrimoine_1``/``decile_patrimoine_9`` (déciles are
+    namespaced by their wealth ranking variable — CONTEXT.md). A net median exists
+    as a levels-only series (no net Gini/share in this dataset)."""
     data, meta = _write_melodi(
         tmp_path,
         [
@@ -261,8 +263,8 @@ def test_median_and_decile_thresholds_become_seuil_groupes(tmp_path: Path) -> No
     by_key = {(r["concept_patrimoine"], r["groupe"]): r["valeur"] for r in seuils}
 
     assert by_key[("brut_hors_reste", "mediane")] == 120000.0
-    assert by_key[("brut_hors_reste", "decile_1")] == 5000.0
-    assert by_key[("brut_hors_reste", "decile_9")] == 600000.0
+    assert by_key[("brut_hors_reste", "decile_patrimoine_1")] == 5000.0
+    assert by_key[("brut_hors_reste", "decile_patrimoine_9")] == 600000.0
     assert by_key[("net", "mediane")] == 110000.0
     assert all(r["unite_valeur"] == "euros" for r in seuils)
 
@@ -306,6 +308,30 @@ def test_archive_unzips_data_and_metadata_then_parses(tmp_path: Path) -> None:
     assert len(rows) == 1
     assert rows[0]["indicateur"] == "gini"
     assert rows[0]["concept_patrimoine"] == "brut_hors_reste"
+
+
+def test_ambiguous_archive_raises_rather_than_dropping_metadata(tmp_path: Path) -> None:
+    """If two archive members both carry the data marker, discrimination is
+    ambiguous: the parser raises rather than silently picking one as data and
+    dropping the other (which would lose labels, or mask a broken download behind
+    the curated-stub fallback)."""
+    import zipfile
+
+    import pytest
+
+    data, _ = _write_melodi(
+        tmp_path / "src",
+        [_obs("GINI_PATBRUT_HR", 0.662)],
+        [("ENQPAT_MEASURE", "GINI_PATBRUT_HR", "Indice de Gini du patrimoine net hors reste")],
+    )
+    archive = tmp_path / "DS_ENQPAT_DET.zip"
+    # Two members that both carry the data marker — neither is the metadata file.
+    with zipfile.ZipFile(archive, "w") as z:
+        z.write(data, arcname="a.csv")
+        z.write(data, arcname="b.csv")
+
+    with pytest.raises(ValueError):
+        insee_parse.parse_melodi_archive(archive)
 
 
 def _melodi_archive(tmp_path: Path) -> Path:
