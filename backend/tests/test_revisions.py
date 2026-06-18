@@ -23,11 +23,11 @@ def test_surfaces_the_seeded_revision_with_both_millesimes(con, relation):
     [rev] = revisions
     # Both millésimes coexist — neither is overwritten — each with its own value
     # and extraction date (traceability).
-    by_millesime = {v["millesime_source"]: v for v in rev.valeurs}
-    assert by_millesime["WID 2024"]["valeur"] == 26.0
-    assert by_millesime["WID 2024"]["date_extraction"] == "2024-06-01"
-    assert by_millesime["WID 2026"]["valeur"] == 26.5
-    assert by_millesime["WID 2026"]["date_extraction"] == "2026-06-12"
+    by_millesime = {v.millesime_source: v for v in rev.valeurs}
+    assert by_millesime["WID 2024"].valeur == 26.0
+    assert by_millesime["WID 2024"].date_extraction == "2024-06-01"
+    assert by_millesime["WID 2026"].valeur == 26.5
+    assert by_millesime["WID 2026"].date_extraction == "2026-06-12"
     # The Convention travels with the révision (never dropped).
     assert rev.unite == "adulte"
     assert rev.concept_patrimoine == "net"

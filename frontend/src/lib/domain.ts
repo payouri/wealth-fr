@@ -5,7 +5,7 @@
 // Encoding rule (DESIGN.md §2): meaning never rests on hue alone. Every series
 // pairs a colour with a dash pattern and a direct end-of-line label, so it
 // survives colourblindness and greyscale.
-import type { Concept, Meta, Source } from "@/api/types";
+import type { Meta } from "@/api/types";
 
 export const SOURCE_LABEL: Record<string, string> = {
   WID: "WID.world",
@@ -299,11 +299,7 @@ export function formatTick(value: number, uniteValeur: string): string {
 }
 
 /** The Convention label carried on every plotted line and traceability row. */
-export function conventionLabel(
-  source: Source | string,
-  unite: string,
-  concept: Concept | string,
-): string {
+export function conventionLabel(source: string, unite: string, concept: string): string {
   const u = UNITE_LABEL[unite] ?? unite;
   const c = CONCEPT_LABEL[concept] ?? concept;
   return `${SOURCE_LABEL[source] ?? source} · ${u} · ${c}`;

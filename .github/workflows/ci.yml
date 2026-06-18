@@ -37,6 +37,14 @@ jobs:
       - name: pytest (backend contract)
         working-directory: backend
         run: python -m pytest -q
+      # Backend-canonical contract gate (ADR 0005, #17): regenerate the committed
+      # openapi.json from the Pydantic models and fail if it drifts. This is the
+      # cross-job interface the frontend job then generates types.ts from.
+      - name: Regenerate openapi.json
+        working-directory: backend
+        run: python -m app.export_openapi
+      - name: Fail on openapi.json drift (Pydantic -> schema)
+        run: git diff --exit-code openapi.json
 
   frontend:
     name: Frontend (biome · tsc · vitest)
@@ -55,6 +63,12 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml # workspace root lockfile (single source of truth)
       - run: pnpm install --frozen-lockfile
+      # Backend-canonical contract gate (ADR 0005, #17): regenerate types.ts from
+      # the committed openapi.json and fail if it drifts. Stays PURE-NODE — it
+      # reads the committed JSON, never the Python toolchain.
+      - run: pnpm gen:types # openapi-typescript ../openapi.json -> src/api/types.ts (+ biome format)
+      - name: Fail on types.ts drift (schema -> TS)
+        run: git diff --exit-code src/api/types.ts
       - run: pnpm lint # biome check .
       - run: pnpm typecheck # tsc -b --noEmit
       - run: pnpm test # vitest run

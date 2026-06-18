@@ -1,0 +1,1405 @@
+{
+  "components": {
+    "schemas": {
+      "AmbiguousConventionDetail": {
+        "description": "The `422` body when filters still span more than one Convention (ADR 0002).\n\nWraps the choices the caller can pin. `error` is a closed literal so the\nfrontend can branch on it. The `@app.exception_handler` in `main.py` produces\nthis body at runtime under a `{\"detail\": \u2026}` envelope; declaring the model via\n`responses={422: {\"model\": AmbiguousConventionDetail}}` only makes it visible\nto OpenAPI (and thus generated for the frontend).",
+        "properties": {
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/ConventionChoice"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "error": {
+            "const": "ambiguous_convention",
+            "default": "ambiguous_convention",
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "choices"
+        ],
+        "title": "AmbiguousConventionDetail",
+        "type": "object"
+      },
+      "ConventionChoice": {
+        "description": "One Convention the caller may pin to resolve a 422 (ADR 0002). `unite` is\nclosed; `concept_patrimoine` stays an OPEN string (ADR 0005).",
+        "properties": {
+          "concept_patrimoine": {
+            "title": "Concept Patrimoine",
+            "type": "string"
+          },
+          "unite": {
+            "title": "Unite",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unite",
+          "concept_patrimoine"
+        ],
+        "title": "ConventionChoice",
+        "type": "object"
+      },
+      "ConventionGroup": {
+        "description": "The Conventions one Source carries: its single `unite` and the Concepts it\nspans (one per Concept \u2014 e.g. DGFiP `total`/`immobilier` across the 2018\nRupture). The Convention guard rail forbids comparing across these (CONTEXT.md).",
+        "properties": {
+          "concepts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Concepts",
+            "type": "array"
+          },
+          "source": {
+            "enum": [
+              "WID",
+              "INSEE",
+              "DGFiP"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "unite": {
+            "enum": [
+              "adulte",
+              "menage",
+              "foyer_fiscal"
+            ],
+            "title": "Unite",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "unite",
+          "concepts"
+        ],
+        "title": "ConventionGroup",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IndicateurSemantics": {
+        "description": "Per-`indicateur` value semantics: its `unite_valeur` and whether it is\n`dimensionless`. The in-band encoding of ADR 0003 \u2014 `%`/`indice` are\ndimensionless (cross-source-comparable in *shape*); `euros*` are levels and\n`effectif` is a count (both NOT dimensionless, never overlaid across Sources).",
+        "properties": {
+          "dimensionless": {
+            "title": "Dimensionless",
+            "type": "boolean"
+          },
+          "indicateur": {
+            "enum": [
+              "part_patrimoine",
+              "gini",
+              "patrimoine_moyen",
+              "seuil",
+              "nb_foyers",
+              "impot_moyen"
+            ],
+            "title": "Indicateur",
+            "type": "string"
+          },
+          "unites_valeur": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Unites Valeur",
+            "type": "array"
+          }
+        },
+        "required": [
+          "indicateur",
+          "unites_valeur",
+          "dimensionless"
+        ],
+        "title": "IndicateurSemantics",
+        "type": "object"
+      },
+      "Meta": {
+        "description": "Lists of available values, to drive first-level UI filters.",
+        "properties": {
+          "annee_max": {
+            "title": "Annee Max",
+            "type": "integer"
+          },
+          "annee_min": {
+            "title": "Annee Min",
+            "type": "integer"
+          },
+          "availability": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            "title": "Availability",
+            "type": "object"
+          },
+          "concepts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Concepts",
+            "type": "array"
+          },
+          "groupes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Groupes",
+            "type": "array"
+          },
+          "indicateurs": {
+            "items": {
+              "enum": [
+                "part_patrimoine",
+                "gini",
+                "patrimoine_moyen",
+                "seuil",
+                "nb_foyers",
+                "impot_moyen"
+              ],
+              "type": "string"
+            },
+            "title": "Indicateurs",
+            "type": "array"
+          },
+          "millesimes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Millesimes",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "enum": [
+                "WID",
+                "INSEE",
+                "DGFiP"
+              ],
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "tranche_taux": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Tranche Taux",
+            "type": "object"
+          },
+          "unites": {
+            "items": {
+              "enum": [
+                "adulte",
+                "menage",
+                "foyer_fiscal"
+              ],
+              "type": "string"
+            },
+            "title": "Unites",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sources",
+          "indicateurs",
+          "groupes",
+          "concepts",
+          "unites",
+          "millesimes",
+          "availability",
+          "tranche_taux",
+          "annee_min",
+          "annee_max"
+        ],
+        "title": "Meta",
+        "type": "object"
+      },
+      "Observation": {
+        "description": "One tidy Observation row, returned VERBATIM and self-describing \u2014 the\n`EXPORT_COLUMNS` shape (CONTEXT.md tidy schema). Every row carries its own\nConvention (`unite` + `concept_patrimoine`) and traceability (`source`,\n`millesime_source`, `date_extraction`), so co-locating rows from several\nConventions is never merging (ADR 0004).",
+        "properties": {
+          "annee": {
+            "title": "Annee",
+            "type": "integer"
+          },
+          "concept_patrimoine": {
+            "title": "Concept Patrimoine",
+            "type": "string"
+          },
+          "date_extraction": {
+            "title": "Date Extraction",
+            "type": "string"
+          },
+          "euros_constants": {
+            "title": "Euros Constants",
+            "type": "boolean"
+          },
+          "groupe": {
+            "title": "Groupe",
+            "type": "string"
+          },
+          "indicateur": {
+            "enum": [
+              "part_patrimoine",
+              "gini",
+              "patrimoine_moyen",
+              "seuil",
+              "nb_foyers",
+              "impot_moyen"
+            ],
+            "title": "Indicateur",
+            "type": "string"
+          },
+          "millesime_source": {
+            "title": "Millesime Source",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "source": {
+            "enum": [
+              "WID",
+              "INSEE",
+              "DGFiP"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "unite": {
+            "enum": [
+              "adulte",
+              "menage",
+              "foyer_fiscal"
+            ],
+            "title": "Unite",
+            "type": "string"
+          },
+          "unite_valeur": {
+            "title": "Unite Valeur",
+            "type": "string"
+          },
+          "valeur": {
+            "title": "Valeur",
+            "type": "number"
+          }
+        },
+        "required": [
+          "annee",
+          "source",
+          "concept_patrimoine",
+          "unite",
+          "groupe",
+          "indicateur",
+          "valeur",
+          "unite_valeur",
+          "euros_constants",
+          "date_extraction",
+          "millesime_source"
+        ],
+        "title": "Observation",
+        "type": "object"
+      },
+      "ObservationsResponse": {
+        "description": "Response for GET /api/observations \u2014 matching rows co-located, never merged.\n\n`query` echoes the resolved filters; `total` is the full matched count (so a\nconsumer can detect truncation against `limit`); `observations` is the\n`limit`/`offset` page. Never resolves to one Convention and never 422s on\nambiguity (ADR 0004).",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/Observation"
+            },
+            "title": "Observations",
+            "type": "array"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "query": {
+            "additionalProperties": true,
+            "title": "Query",
+            "type": "object"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query",
+          "total",
+          "limit",
+          "offset",
+          "observations"
+        ],
+        "title": "ObservationsResponse",
+        "type": "object"
+      },
+      "Point": {
+        "properties": {
+          "annee": {
+            "title": "Annee",
+            "type": "integer"
+          },
+          "valeur": {
+            "title": "Valeur",
+            "type": "number"
+          }
+        },
+        "required": [
+          "annee",
+          "valeur"
+        ],
+        "title": "Point",
+        "type": "object"
+      },
+      "RevisionDiff": {
+        "description": "An observation that exists in more than one mill\u00e9sime (`/api/revisions`).",
+        "properties": {
+          "annee": {
+            "title": "Annee",
+            "type": "integer"
+          },
+          "concept_patrimoine": {
+            "title": "Concept Patrimoine",
+            "type": "string"
+          },
+          "groupe": {
+            "title": "Groupe",
+            "type": "string"
+          },
+          "indicateur": {
+            "enum": [
+              "part_patrimoine",
+              "gini",
+              "patrimoine_moyen",
+              "seuil",
+              "nb_foyers",
+              "impot_moyen"
+            ],
+            "title": "Indicateur",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "WID",
+              "INSEE",
+              "DGFiP"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "unite": {
+            "enum": [
+              "adulte",
+              "menage",
+              "foyer_fiscal"
+            ],
+            "title": "Unite",
+            "type": "string"
+          },
+          "valeurs": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionValeur"
+            },
+            "title": "Valeurs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "annee",
+          "source",
+          "concept_patrimoine",
+          "unite",
+          "groupe",
+          "indicateur",
+          "valeurs"
+        ],
+        "title": "RevisionDiff",
+        "type": "object"
+      },
+      "RevisionValeur": {
+        "description": "One competing Mill\u00e9sime of a revised Observation: its value and the\n`date_extraction` that orders the r\u00e9vision (append-only historisation).",
+        "properties": {
+          "date_extraction": {
+            "title": "Date Extraction",
+            "type": "string"
+          },
+          "millesime_source": {
+            "title": "Millesime Source",
+            "type": "string"
+          },
+          "valeur": {
+            "title": "Valeur",
+            "type": "number"
+          }
+        },
+        "required": [
+          "millesime_source",
+          "valeur",
+          "date_extraction"
+        ],
+        "title": "RevisionValeur",
+        "type": "object"
+      },
+      "Rupture": {
+        "description": "A methodological break to annotate on a series (e.g. 2018 ISF->IFI).",
+        "properties": {
+          "annee": {
+            "title": "Annee",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "annee",
+          "label"
+        ],
+        "title": "Rupture",
+        "type": "object"
+      },
+      "Schema": {
+        "description": "Response for GET /api/schema \u2014 the machine-readable contract / agent entry\npoint (ADR 0004). Lets an agent learn the Conventions, the per-indicateur\nvalue semantics with the `dimensionless` flag, the known Ruptures, the\nhistorisation key, and the guard rails (as English strings) from the API\nitself rather than only from CONTEXT.md out-of-band.",
+        "properties": {
+          "conventions": {
+            "items": {
+              "$ref": "#/components/schemas/ConventionGroup"
+            },
+            "title": "Conventions",
+            "type": "array"
+          },
+          "historisation_key": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Historisation Key",
+            "type": "array"
+          },
+          "indicateurs": {
+            "items": {
+              "$ref": "#/components/schemas/IndicateurSemantics"
+            },
+            "title": "Indicateurs",
+            "type": "array"
+          },
+          "rules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "ruptures": {
+            "items": {
+              "$ref": "#/components/schemas/SchemaRupture"
+            },
+            "title": "Ruptures",
+            "type": "array"
+          }
+        },
+        "required": [
+          "conventions",
+          "indicateurs",
+          "ruptures",
+          "historisation_key",
+          "rules"
+        ],
+        "title": "Schema",
+        "type": "object"
+      },
+      "SchemaRupture": {
+        "description": "A known methodological break, with its Source, for /api/schema (e.g. the\nDGFiP 2018 ISF\u2192IFI Rupture). Unlike `Rupture`, it names the Source it belongs\nto so an agent can attribute the break.",
+        "properties": {
+          "annee": {
+            "title": "Annee",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "WID",
+              "INSEE",
+              "DGFiP"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "annee",
+          "label"
+        ],
+        "title": "SchemaRupture",
+        "type": "object"
+      },
+      "Series": {
+        "description": "Response for GET /api/series \u2014 a single filtered series.\n\n`unite` and `concept_patrimoine` are echoed back because they qualify the\nmeaning of every value (the Convention). Never drop them.",
+        "properties": {
+          "concept_patrimoine": {
+            "title": "Concept Patrimoine",
+            "type": "string"
+          },
+          "date_extraction": {
+            "default": "",
+            "title": "Date Extraction",
+            "type": "string"
+          },
+          "millesime_source": {
+            "title": "Millesime Source",
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/Point"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "query": {
+            "additionalProperties": true,
+            "title": "Query",
+            "type": "object"
+          },
+          "ruptures": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Rupture"
+            },
+            "title": "Ruptures",
+            "type": "array"
+          },
+          "unite": {
+            "enum": [
+              "adulte",
+              "menage",
+              "foyer_fiscal"
+            ],
+            "title": "Unite",
+            "type": "string"
+          },
+          "unite_valeur": {
+            "title": "Unite Valeur",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query",
+          "unite",
+          "concept_patrimoine",
+          "unite_valeur",
+          "points",
+          "millesime_source"
+        ],
+        "title": "Series",
+        "type": "object"
+      },
+      "SourceInfo": {
+        "description": "Provenance + licence/attribution metadata (data in `data.py` `SOURCE_INFO`, served by `/api/sources`).",
+        "properties": {
+          "attribution": {
+            "title": "Attribution",
+            "type": "string"
+          },
+          "convention": {
+            "title": "Convention",
+            "type": "string"
+          },
+          "licence": {
+            "title": "Licence",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "WID",
+              "INSEE",
+              "DGFiP"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "url",
+          "convention",
+          "licence",
+          "attribution"
+        ],
+        "title": "SourceInfo",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Explore harmonized wealth-concentration series for France since 2000.",
+    "title": "Concentration du patrimoine en France",
+    "version": "0.0.1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/compare": {
+      "get": {
+        "description": "Same indicateur/groupe across several sources. `sources` = CSV list.\n\nEach returned series keeps its own Convention; never merged (jalon 5, ADR\n0003). A source still spanning more than one Convention surfaces the same\n422 \"pick a Convention\" contract as /api/series.",
+        "operationId": "compare_api_compare_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "indicateur",
+            "required": true,
+            "schema": {
+              "enum": [
+                "part_patrimoine",
+                "gini",
+                "patrimoine_moyen",
+                "seuil",
+                "nb_foyers",
+                "impot_moyen"
+              ],
+              "title": "Indicateur",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "groupe",
+            "required": true,
+            "schema": {
+              "title": "Groupe",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sources",
+            "required": true,
+            "schema": {
+              "title": "Sources",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Series"
+                  },
+                  "title": "Response Compare Api Compare Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AmbiguousConventionDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Compare"
+      }
+    },
+    "/api/export.csv": {
+      "get": {
+        "description": "Stream the resolved tidy rows as CSV (jalon 9).\n\nReuses the jalon-3 resolver (`resolve_rows`), so the export is exactly the\nrows the chart was drawn from \u2014 same Convention guard, same single-Mill\u00e9sime\npick, same 422 \"pick a Convention\" contract (handled centrally).",
+        "operationId": "export_csv_api_export_csv_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "required": true,
+            "schema": {
+              "enum": [
+                "WID",
+                "INSEE",
+                "DGFiP"
+              ],
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "indicateur",
+            "required": true,
+            "schema": {
+              "enum": [
+                "part_patrimoine",
+                "gini",
+                "patrimoine_moyen",
+                "seuil",
+                "nb_foyers",
+                "impot_moyen"
+              ],
+              "title": "Indicateur",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "groupe",
+            "required": true,
+            "schema": {
+              "title": "Groupe",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "concept",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Concept"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unite",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "adulte",
+                    "menage",
+                    "foyer_fiscal"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unite"
+            }
+          },
+          {
+            "in": "query",
+            "name": "annee_min",
+            "required": false,
+            "schema": {
+              "default": 2000,
+              "title": "Annee Min",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "annee_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Annee Max"
+            }
+          },
+          {
+            "in": "query",
+            "name": "euros_constants",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Euros Constants",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "millesime",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Millesime"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AmbiguousConventionDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Export Csv"
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Api Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/api/meta": {
+      "get": {
+        "operationId": "meta_api_meta_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Meta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Meta"
+      }
+    },
+    "/api/observations": {
+      "get": {
+        "description": "The matching tidy Observation rows, returned VERBATIM and self-describing.\n\nThe faithful, unpinned agent access surface (ADR 0004): unlike /api/series,\nit NEVER resolves to one Convention and NEVER 422s on ambiguity \u2014 co-locating\nlabelled rows across Conventions is not merging. All filters are optional,\nmulti-value comma-lists selecting the union; an omitted filter is\nunconstrained. All matching Mill\u00e9simes are returned (R\u00e9visions inline, not\ndeduped); both nominal and euros_constants rows unless narrowed. An empty\nmatch is a normal 200 with []. `total` is the full matched count (truncation\ndetection) while `limit`/`offset` slice the page.",
+        "operationId": "observations_api_observations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
+            }
+          },
+          {
+            "in": "query",
+            "name": "indicateur",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Indicateur"
+            }
+          },
+          {
+            "in": "query",
+            "name": "groupe",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Groupe"
+            }
+          },
+          {
+            "in": "query",
+            "name": "concept",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Concept"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unite",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unite"
+            }
+          },
+          {
+            "in": "query",
+            "name": "millesime",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Millesime"
+            }
+          },
+          {
+            "in": "query",
+            "name": "annee_min",
+            "required": false,
+            "schema": {
+              "default": 2000,
+              "title": "Annee Min",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "annee_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Annee Max"
+            }
+          },
+          {
+            "in": "query",
+            "name": "euros_constants",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Euros Constants"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5000,
+              "maximum": 50000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservationsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Observations"
+      }
+    },
+    "/api/revisions": {
+      "get": {
+        "operationId": "revisions_api_revisions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RevisionDiff"
+                  },
+                  "title": "Response Revisions Api Revisions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Revisions"
+      }
+    },
+    "/api/schema": {
+      "get": {
+        "description": "The machine-readable contract / agent entry point (ADR 0004): the\nConventions, the per-indicateur value semantics with the `dimensionless` flag\n(in-band ADR 0003), the known Ruptures, the historisation key, and the guard\nrails as English strings. Read-only, public, GET-only.",
+        "operationId": "schema_api_schema_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Schema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Schema"
+      }
+    },
+    "/api/series": {
+      "get": {
+        "description": "One Convention-pinned, single-Mill\u00e9sime series (ADR 0002).\n\n`concept` is part of the required contract (the frontend always sends it);\nthe backend additionally guards: if filters still span more than one\nConvention, it returns 422 with the available choices rather than merging\n(handled centrally by `_ambiguous_convention`).",
+        "operationId": "series_api_series_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "source",
+            "required": true,
+            "schema": {
+              "enum": [
+                "WID",
+                "INSEE",
+                "DGFiP"
+              ],
+              "title": "Source",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "indicateur",
+            "required": true,
+            "schema": {
+              "enum": [
+                "part_patrimoine",
+                "gini",
+                "patrimoine_moyen",
+                "seuil",
+                "nb_foyers",
+                "impot_moyen"
+              ],
+              "title": "Indicateur",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "groupe",
+            "required": true,
+            "schema": {
+              "title": "Groupe",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "concept",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Concept"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unite",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "adulte",
+                    "menage",
+                    "foyer_fiscal"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Unite"
+            }
+          },
+          {
+            "in": "query",
+            "name": "annee_min",
+            "required": false,
+            "schema": {
+              "default": 2000,
+              "title": "Annee Min",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "annee_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Annee Max"
+            }
+          },
+          {
+            "in": "query",
+            "name": "euros_constants",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Euros Constants",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "millesime",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Millesime"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Series"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AmbiguousConventionDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Series"
+      }
+    },
+    "/api/sources": {
+      "get": {
+        "description": "Provenance + licence/attribution per Source (jalon 8; data in `data.py` `SOURCE_INFO`).",
+        "operationId": "sources_api_sources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceInfo"
+                  },
+                  "title": "Response Sources Api Sources Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Sources"
+      }
+    }
+  }
+}

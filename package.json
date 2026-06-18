@@ -8,7 +8,10 @@
     "bootstrap": "python3 -m venv backend/.venv && backend/.venv/bin/pip install --upgrade pip && backend/.venv/bin/pip install -r backend/requirements-dev.txt && pnpm --dir frontend install",
     "dev": "concurrently -k -n api,web -c blue,magenta \"backend/.venv/bin/uvicorn app.main:app --app-dir backend --reload --reload-dir backend/app --host 127.0.0.1 --port 8000\" \"pnpm --dir frontend dev\"",
     "api": "backend/.venv/bin/uvicorn app.main:app --app-dir backend --reload --reload-dir backend/app --host 127.0.0.1 --port 8000",
-    "web": "pnpm --dir frontend dev"
+    "web": "pnpm --dir frontend dev",
+    "gen:openapi": "cd backend && .venv/bin/python -m app.export_openapi",
+    "gen:types": "pnpm --dir frontend gen:types",
+    "gen:contract": "pnpm gen:openapi && pnpm gen:types"
   },
   "devDependencies": {
     "concurrently": "10.0.3"
