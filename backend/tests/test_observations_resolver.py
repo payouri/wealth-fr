@@ -90,3 +90,27 @@ def test_total_reflects_full_match_while_limit_offset_slice_it(con, relation):
     rest, _ = resolve_observations(con, relation, source=["WID"], limit=2, offset=2)
     # offset advances past the first page; no overlap on a stable ORDER BY.
     assert [r for r in page] != [r for r in rest]
+
+
+def test_paging_across_a_tie_group_is_lossless_total_order(con, relation):
+    # The ORDER BY must be a TOTAL order. WID's 2021 patrimoine_moyen carries two
+    # rows — nominal (euros) and deflated (euros_constants_2021) — that tie on
+    # every HIST_KEYS column AND on millesime_source/date_extraction; only
+    # euros_constants + unite_valeur distinguish them. Paging with a page boundary
+    # STRADDLING that tied pair must drop nothing and duplicate nothing.
+    full, total = resolve_observations(con, relation, source=["WID"])
+
+    # Sanity: the tie group really is in the fixture and adjacent under the order.
+    tie = [r for r in full if r["indicateur"] == "patrimoine_moyen" and r["annee"] == 2021]
+    assert {r["unite_valeur"] for r in tie} == {"euros", "euros_constants_2021"}
+
+    # Walk the whole result one row at a time, so every offset (including the ones
+    # landing inside the tie pair) is exercised as a page boundary.
+    paged: list[dict] = []
+    for off in range(total + 1):
+        page, page_total = resolve_observations(con, relation, source=["WID"], limit=1, offset=off)
+        assert page_total == total
+        paged.extend(page)
+
+    assert len(paged) == total  # no duplicate, no drop
+    assert paged == full  # the concatenation of pages equals the full result

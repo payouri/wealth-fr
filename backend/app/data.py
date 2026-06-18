@@ -463,9 +463,18 @@ def resolve_observations(
     cols = ", ".join(
         f"CAST({c} AS VARCHAR) AS {c}" if c == "date_extraction" else c for c in EXPORT_COLUMNS
     )
+    # The ORDER BY must be a TOTAL order or paging is lossy: nominal vs
+    # euros_constants rows of one indicateur/year/Millésime tie on every
+    # HIST_KEYS column AND on millesime_source/date_extraction, so DuckDB may
+    # order such a tied pair differently between the count and a page query (or
+    # between two pages) — a consumer paging across the tie boundary would then
+    # see a row twice or miss one. Appending euros_constants + unite_valeur (the
+    # only columns that distinguish a level's nominal/deflated pair) breaks every
+    # remaining tie, making the slice deterministic.
     rows = con.execute(
         f"SELECT {cols} FROM {relation} WHERE {clause} "
-        f"ORDER BY {', '.join(HIST_KEYS)}, millesime_source, date_extraction "
+        f"ORDER BY {', '.join(HIST_KEYS)}, millesime_source, date_extraction, "
+        "euros_constants, unite_valeur "
         "LIMIT ? OFFSET ?",
         [*params, limit, offset],
     ).fetchall()
@@ -487,7 +496,15 @@ _DIMENSIONLESS_UNITES_VALEUR = {"%", "indice"}
 def _is_dimensionless(unites_valeur: list[str]) -> bool:
     """An indicateur is dimensionless only if EVERY `unite_valeur` it carries is
     dimensionless (the in-band encoding of ADR 0003). A levels/count `unite_valeur`
-    disqualifies it — it is Convention-bound, not overlay-safe across Sources."""
+    disqualifies it — it is Convention-bound, not overlay-safe across Sources.
+
+    Closed-world note: the property truly lives at (indicateur, unite_valeur)
+    granularity — a single indicateur could in principle mix a dimensionless and a
+    levels `unite_valeur`. The global `all()` collapses that to one flag per
+    indicateur, which is the *safe* direction: it only ever reports dimensionless
+    when no Convention-bound `unite_valeur` is present, so it can never wrongly
+    advertise a levels/count value as cross-source-comparable (it errs toward
+    Convention-bound, never away from it)."""
     return bool(unites_valeur) and all(uv in _DIMENSIONLESS_UNITES_VALEUR for uv in unites_valeur)
 
 

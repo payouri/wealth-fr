@@ -66,3 +66,13 @@ def test_limit_and_offset_slice_while_total_stays_full():
     page = client.get("/api/observations", params={"source": "WID", "limit": 2}).json()
     assert page["total"] == full["total"]
     assert len(page["observations"]) == 2
+
+
+def test_malformed_paging_params_are_rejected_as_422_not_500():
+    # Negative offset / non-positive limit would otherwise reach DuckDB's
+    # LIMIT/OFFSET and raise a BinderException → uncaught 500 on the public agent
+    # surface. FastAPI's Query bounds (offset>=0, limit in [1,50000]) reject them.
+    assert client.get("/api/observations", params={"offset": -1}).status_code == 422
+    assert client.get("/api/observations", params={"limit": -1}).status_code == 422
+    assert client.get("/api/observations", params={"limit": 0}).status_code == 422
+    assert client.get("/api/observations", params={"limit": 50001}).status_code == 422

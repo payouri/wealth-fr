@@ -13,7 +13,7 @@ import csv
 import io
 import re
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -189,8 +189,12 @@ def observations(
     annee_min: int = 2000,
     annee_max: int | None = None,
     euros_constants: bool | None = None,
-    limit: int = 5000,
-    offset: int = 0,
+    # Paging bounds reject malformed input as a 422 (not a DuckDB BinderException
+    # → 500 on the public agent surface): offset >= 0, limit in [1, 50000]. The
+    # upper bound comfortably exceeds the dataset (~37k rows) so it never truncates
+    # a legitimate full read while capping a whole-table grab.
+    limit: int = Query(default=5000, ge=1, le=50000),
+    offset: int = Query(default=0, ge=0),
 ):
     """The matching tidy Observation rows, returned VERBATIM and self-describing.
 
