@@ -159,10 +159,10 @@ class SourceInfo(BaseModel):
 
 # --- Agent access surface (ADR 0004) -----------------------------------------
 # The models below back /api/observations and /api/schema — a programmatic /
-# agent-facing surface. They are INTENTIONALLY NOT mirrored into
-# `frontend/src/api/types.ts`: the "two mirrors must agree" rule (AGENTS.md)
-# governs only the UI contract, and the frontend does not consume these
-# endpoints. If a UI surface later consumes them, mirror them then (ADR 0004).
+# agent-facing surface. Under backend-canonical codegen (ADR 0005) they DO appear
+# in the generated `frontend/src/api/types.ts` (it is emitted from the OpenAPI
+# schema, which includes them); that is expected and harmless. The point that the
+# FRONTEND does not consume these endpoints still stands — they exist for agents.
 
 
 class Observation(BaseModel):

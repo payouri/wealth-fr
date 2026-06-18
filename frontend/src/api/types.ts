@@ -18,6 +18,11 @@ export interface paths {
      *     Each returned series keeps its own Convention; never merged (jalon 5, ADR
      *     0003). A source still spanning more than one Convention surfaces the same
      *     422 "pick a Convention" contract as /api/series.
+     *
+     *     `sources` is a free-form CSV (not a closed Literal like /api/series'
+     *     `source`), so it is validated here: an unknown source is a client error and
+     *     422s the whole request — consistent with the closed `source` Literal on
+     *     /api/series and /api/export.csv, never a silently-degenerate 200.
      */
     get: operations["compare_api_compare_get"];
     put?: never;

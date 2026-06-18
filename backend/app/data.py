@@ -340,10 +340,13 @@ def resolve_series(
         [*params, millesime],
     ).fetchone()
 
+    # `unite` is derived from a known source (callers validate the source against
+    # `UNITE_BY_SOURCE` first — the closed Literal on /api/series, the explicit
+    # check in /api/compare), so it is always a real Unite here. Assert rather than
+    # `cast(Unite, None)`: never let `None` reach the closed `unite` field (ADR 0005).
+    assert unite is not None
     return Series(
         query=query,
-        # `unite` is derived from a (closed) source, so it is always a valid Unite
-        # here; cast at the boundary (Pydantic still validates) — ADR 0005.
         unite=cast(Unite, unite),
         concept_patrimoine=resolved_concept,
         unite_valeur=str(uv_row[0]) if uv_row else "",
@@ -620,11 +623,11 @@ def resolve_revisions(con: duckdb.DuckDBPyConnection, relation: str) -> list[Rev
             # Trusted dataset values for the closed axes; Pydantic validates them.
             diff = RevisionDiff(
                 annee=int(annee),
-                source=cast(Source, str(source)),
+                source=cast(Source, source),
                 concept_patrimoine=str(concept),
-                unite=cast(Unite, str(unite)),
+                unite=cast(Unite, unite),
                 groupe=str(groupe),
-                indicateur=cast(Indicateur, str(indicateur)),
+                indicateur=cast(Indicateur, indicateur),
                 valeurs=[],
             )
             out[key] = diff

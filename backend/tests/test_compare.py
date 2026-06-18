@@ -55,6 +55,27 @@ def test_ambiguous_source_returns_422_with_choices():
     assert {c["concept_patrimoine"] for c in choices} == {"total", "immobilier"}
 
 
+def test_unknown_source_returns_422():
+    # `sources` is a free-form CSV, not a closed Literal, so an unknown source is
+    # validated in the route: a bogus source is a client error (422), never a
+    # silently-degenerate 200.
+    res = client.get(
+        "/api/compare",
+        params={"indicateur": "part_patrimoine", "groupe": "top1", "sources": "BOGUS"},
+    )
+    assert res.status_code == 422
+
+
+def test_one_unknown_source_422s_the_whole_request():
+    # If any leg is invalid the whole request 422s — we never quietly return the
+    # valid leg(s) and drop the bogus one.
+    res = client.get(
+        "/api/compare",
+        params={"indicateur": "part_patrimoine", "groupe": "top1", "sources": "WID,BOGUS"},
+    )
+    assert res.status_code == 422
+
+
 def test_ambiguous_insee_concept_returns_422_with_choices():
     # INSEE spans all-inclusive brut and brut hors reste (issue #14); with no
     # concept pinned the Gini query surfaces the same 422 chooser as DGFiP.

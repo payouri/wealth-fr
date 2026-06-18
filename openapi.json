@@ -721,7 +721,7 @@
   "paths": {
     "/api/compare": {
       "get": {
-        "description": "Same indicateur/groupe across several sources. `sources` = CSV list.\n\nEach returned series keeps its own Convention; never merged (jalon 5, ADR\n0003). A source still spanning more than one Convention surfaces the same\n422 \"pick a Convention\" contract as /api/series.",
+        "description": "Same indicateur/groupe across several sources. `sources` = CSV list.\n\nEach returned series keeps its own Convention; never merged (jalon 5, ADR\n0003). A source still spanning more than one Convention surfaces the same\n422 \"pick a Convention\" contract as /api/series.\n\n`sources` is a free-form CSV (not a closed Literal like /api/series'\n`source`), so it is validated here: an unknown source is a client error and\n422s the whole request \u2014 consistent with the closed `source` Literal on\n/api/series and /api/export.csv, never a silently-degenerate 200.",
         "operationId": "compare_api_compare_get",
         "parameters": [
           {

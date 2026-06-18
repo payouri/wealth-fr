@@ -16,8 +16,10 @@ from __future__ import annotations
 import csv
 import io
 import re
+from typing import Any
 
 from fastapi import FastAPI, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -40,7 +42,9 @@ from .models import (
 # single Convention (series, compare, export.csv). The body itself is still
 # produced at runtime by `_ambiguous_convention` below; this only surfaces the
 # shape to OpenAPI so it is generated for the frontend (ADR 0005).
-_AMBIGUOUS_CONVENTION_RESPONSES: dict = {422: {"model": AmbiguousConventionDetail}}
+_AMBIGUOUS_CONVENTION_RESPONSES: dict[int | str, dict[str, Any]] = {
+    422: {"model": AmbiguousConventionDetail}
+}
 
 app = FastAPI(
     title="Concentration du patrimoine en France",
@@ -119,8 +123,27 @@ def compare(indicateur: Indicateur, groupe: str, sources: str):
     Each returned series keeps its own Convention; never merged (jalon 5, ADR
     0003). A source still spanning more than one Convention surfaces the same
     422 "pick a Convention" contract as /api/series.
+
+    `sources` is a free-form CSV (not a closed Literal like /api/series'
+    `source`), so it is validated here: an unknown source is a client error and
+    422s the whole request — consistent with the closed `source` Literal on
+    /api/series and /api/export.csv, never a silently-degenerate 200.
     """
     source_list = [s.strip() for s in sources.split(",") if s.strip()]
+    unknown = [s for s in source_list if s not in data.UNITE_BY_SOURCE]
+    if unknown:
+        known = ", ".join(sorted(data.UNITE_BY_SOURCE))
+        raise RequestValidationError(
+            [
+                {
+                    "type": "enum",
+                    "loc": ("query", "sources"),
+                    "msg": f"unknown source(s) {unknown}; expected one of: {known}",
+                    "input": s,
+                }
+                for s in unknown
+            ]
+        )
     return data.get_compare(indicateur=indicateur, groupe=groupe, sources=source_list)
 
 
