@@ -423,9 +423,9 @@ SOURCE_INFO: list[SourceInfo] = [
     SourceInfo(
         source="INSEE",
         url="https://www.insee.fr",
-        convention="ménages · patrimoine brut",
+        convention="ménages · brut/net (et hors reste)",
         licence="Licence Ouverte / Open Licence (Etalab) — à vérifier par jeu de données",
-        attribution="INSEE — enquêtes Patrimoine / Histoire de vie et patrimoine (HVP)",
+        attribution="INSEE — enquêtes Patrimoine / Histoire de vie et patrimoine (HVP, API Melodi)",
     ),
     SourceInfo(
         source="DGFiP",

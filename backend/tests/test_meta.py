@@ -6,7 +6,14 @@ from app.data import build_meta
 def test_meta_lists_distinct_dimension_values(con, relation):
     meta = build_meta(con, relation)
     assert set(meta.sources) == {"WID", "INSEE", "DGFiP"}
-    assert set(meta.concepts) == {"net", "brut", "total", "immobilier"}
+    assert set(meta.concepts) == {
+        "net",
+        "brut",
+        "brut_hors_reste",
+        "net_hors_reste",
+        "total",
+        "immobilier",
+    }
     assert set(meta.unites) == {"adulte", "menage", "foyer_fiscal"}
     assert "part_patrimoine" in meta.indicateurs
     assert "redevables" in meta.groupes

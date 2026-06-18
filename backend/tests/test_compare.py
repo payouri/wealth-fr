@@ -24,8 +24,13 @@ def test_returns_one_series_per_source_each_keeping_its_convention(con, relation
     by_source = {str(s.query["source"]): s for s in series}
     assert set(by_source) == {"WID", "INSEE"}
     # Each Source keeps its own (unité, concept) — never collapsed into one.
+    # INSEE's shares are the *brut hors reste* Convention (issue #14): the headline
+    # figures INSEE publishes, distinct from the all-inclusive brut.
     assert (by_source["WID"].unite, by_source["WID"].concept_patrimoine) == ("adulte", "net")
-    assert (by_source["INSEE"].unite, by_source["INSEE"].concept_patrimoine) == ("menage", "brut")
+    assert (by_source["INSEE"].unite, by_source["INSEE"].concept_patrimoine) == (
+        "menage",
+        "brut_hors_reste",
+    )
 
 
 def test_endpoint_overlays_sources_with_distinct_conventions():
@@ -35,7 +40,7 @@ def test_endpoint_overlays_sources_with_distinct_conventions():
     ).json()
     assert len(body) == 2
     conventions = {(s["unite"], s["concept_patrimoine"]) for s in body}
-    assert conventions == {("adulte", "net"), ("menage", "brut")}
+    assert conventions == {("adulte", "net"), ("menage", "brut_hors_reste")}
 
 
 def test_ambiguous_source_returns_422_with_choices():
@@ -48,3 +53,15 @@ def test_ambiguous_source_returns_422_with_choices():
     assert res.status_code == 422
     choices = res.json()["detail"]["choices"]
     assert {c["concept_patrimoine"] for c in choices} == {"total", "immobilier"}
+
+
+def test_ambiguous_insee_concept_returns_422_with_choices():
+    # INSEE spans all-inclusive brut and brut hors reste (issue #14); with no
+    # concept pinned the Gini query surfaces the same 422 chooser as DGFiP.
+    res = client.get(
+        "/api/compare",
+        params={"indicateur": "gini", "groupe": "ensemble", "sources": "INSEE"},
+    )
+    assert res.status_code == 422
+    choices = res.json()["detail"]["choices"]
+    assert {c["concept_patrimoine"] for c in choices} == {"brut", "brut_hors_reste"}

@@ -17,13 +17,15 @@ export const SOURCE_LABEL: Record<string, string> = {
  *  never implicit (Principle 1: "The Convention is the contract"). */
 export const SOURCE_CONVENTION: Record<string, string> = {
   WID: "adultes · patrimoine net",
-  INSEE: "ménages · patrimoine brut",
+  INSEE: "ménages · brut/net (et hors reste)",
   DGFiP: "foyers fiscaux · ISF/IFI",
 };
 
 export const CONCEPT_LABEL: Record<string, string> = {
   net: "net",
   brut: "brut",
+  brut_hors_reste: "brut hors reste",
+  net_hors_reste: "net hors reste",
   total: "total (ISF)",
   immobilier: "immobilier (IFI)",
 };

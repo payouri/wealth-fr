@@ -147,7 +147,18 @@ Things the code won't tell you, that have already bitten this project:
   curated-CSV/points fallback. There is **no single IFI URL**: the 3 IFI national
   breakdowns live under stable `/node/` links and the frozen ISF 1999–2017 series
   under a data.gouv.fr resource, configured via the registry `DGFIP_SOURCE_URLS`
-  (`netfetch.dgfip_source_urls()`; URLs in `.env.example`). INSEE is curated by design.
+  (`netfetch.dgfip_source_urls()`; URLs in `.env.example`).
+- **INSEE runs live too (Melodi).** As of 2026-06 INSEE is **no longer curated by
+  design** ([#14](https://github.com/payouri/wealth-fr/issues/14)): the HVP
+  aggregates are fetched live from the INSEE **Melodi** API (dataset
+  `DS_ENQPAT_DET`, public/no-auth), parsed by `pipeline/insee_parse.py` into the
+  four INSEE Conventions (`brut`/`net` + the *hors reste* variants), with a live →
+  cached-file → curated-stub fallback chain. The dataset id is env-overridable
+  (`netfetch.insee_melodi_dataset()` / `INSEE_MELODI_DATASET`). Self-deflation: only
+  nominal levels are ingested; the pipeline deflates them to the project base, so
+  INSEE shares one constant-euro base with WID/DGFiP. See ADR 0006. Trap: Melodi's
+  metadata labels `GINI_PATBRUT_HR` "net" — it is authoritatively **brut hors
+  reste**; the parser overrides the mislabel on purpose (do not "fix" it back).
 - **Parquet preferred, CSV fallback.** The backend reads Parquet if present, else
   the cumulative CSV. The Parquet output now ships (**jalon 2** done); both files
   are gitignored — in production the data lives in a Coolify-managed `dataset`

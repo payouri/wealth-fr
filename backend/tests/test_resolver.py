@@ -118,6 +118,31 @@ def test_valid_query_matching_no_rows_returns_empty_points(con, relation):
     assert series.concept_patrimoine == "net"
 
 
+def test_insee_without_concept_is_ambiguous_across_brut_and_hors_reste(con, relation):
+    # INSEE now spans more than one Convention (all-inclusive brut vs brut hors
+    # reste); with no concept pinned the Gini query is ambiguous, exactly like
+    # DGFiP across the 2018 Rupture (issue #14).
+    with pytest.raises(AmbiguousConvention) as excinfo:
+        resolve_series(con, relation, source="INSEE", indicateur="gini", groupe="ensemble")
+    concepts = {c["concept_patrimoine"] for c in excinfo.value.choices}
+    assert concepts == {"brut", "brut_hors_reste"}
+    assert all(c["unite"] == "menage" for c in excinfo.value.choices)
+
+
+def test_insee_with_pinned_concept_resolves_cleanly(con, relation):
+    series = resolve_series(
+        con,
+        relation,
+        source="INSEE",
+        indicateur="gini",
+        groupe="ensemble",
+        concept="brut_hors_reste",
+    )
+    assert series.unite == "menage"
+    assert series.concept_patrimoine == "brut_hors_reste"
+    assert series.points  # the headline hors-reste Gini resolves to actual points
+
+
 def test_dgfip_series_carries_2018_rupture_in_range(con, relation):
     series = resolve_series(
         con,
