@@ -115,11 +115,19 @@ Auto-fix formatting: `ruff format .` (Python) / `pnpm format` (frontend).
   values (`net`, `brut`, `menage`, `foyer_fiscal`, `redevables`, `top1`…), and the
   words `jalon` / `millésime`. Renaming any of these is a breaking migration across
   pipeline + backend + frontend, not a doc edit.
-- **The contract _is_ the code, in two mirrors that must agree:**
-  [backend/app/models.py](./backend/app/models.py) (Pydantic) ↔
-  [frontend/src/api/types.ts](./frontend/src/api/types.ts) (TS). Change one → change
-  the other. Query-param / `422` semantics live in the FastAPI route signatures
-  ([backend/app/main.py](./backend/app/main.py)) and
+- **The contract is backend-canonical and generated one-way** (ADR 0005). The
+  Pydantic models in [backend/app/models.py](./backend/app/models.py) (plus the
+  route signatures in [backend/app/main.py](./backend/app/main.py)) are the SINGLE
+  source of truth; FastAPI emits OpenAPI to the committed root `openapi.json`, and
+  [frontend/src/api/types.ts](./frontend/src/api/types.ts) is **generated** from it
+  by `openapi-typescript` — never hand-edit `types.ts`. Change Pydantic, then
+  `pnpm gen:contract` (writes `openapi.json`, then regenerates `types.ts`). CI
+  fails on drift via `git diff --exit-code` on both committed artifacts. Vocabulary
+  is split: `Source` / `Unite` / `Indicateur` are closed `Literal`s (→ OpenAPI
+  enums → TS unions; FastAPI 422s an unknown value); `concept_patrimoine` and
+  `groupe` stay **open** strings, discovered at runtime via `/api/meta` (so a new
+  concept needs no code change). The `422` "pick a Convention" body is the
+  `AmbiguousConventionDetail` model. Query-param / `422` semantics:
   [ADR 0002](./docs/adr/0002-series-endpoint-resolves-one-convention-one-millesime.md).
 - **Toolchain:** Python = ruff (lint + format) + mypy, target `py312` (config in
   [pyproject.toml](./pyproject.toml)). Frontend = Biome (lint + format) + strict
@@ -147,7 +155,18 @@ Things the code won't tell you, that have already bitten this project:
   curated-CSV/points fallback. There is **no single IFI URL**: the 3 IFI national
   breakdowns live under stable `/node/` links and the frozen ISF 1999–2017 series
   under a data.gouv.fr resource, configured via the registry `DGFIP_SOURCE_URLS`
-  (`netfetch.dgfip_source_urls()`; URLs in `.env.example`). INSEE is curated by design.
+  (`netfetch.dgfip_source_urls()`; URLs in `.env.example`).
+- **INSEE runs live too (Melodi).** As of 2026-06 INSEE is **no longer curated by
+  design** ([#14](https://github.com/payouri/wealth-fr/issues/14)): the HVP
+  aggregates are fetched live from the INSEE **Melodi** API (dataset
+  `DS_ENQPAT_DET`, public/no-auth), parsed by `pipeline/insee_parse.py` into the
+  four INSEE Conventions (`brut`/`net` + the *hors reste* variants), with a live →
+  cached-file → curated-stub fallback chain. The dataset id is env-overridable
+  (`netfetch.insee_melodi_dataset()` / `INSEE_MELODI_DATASET`). Self-deflation: only
+  nominal levels are ingested; the pipeline deflates them to the project base, so
+  INSEE shares one constant-euro base with WID/DGFiP. See ADR 0006. Trap: Melodi's
+  metadata labels `GINI_PATBRUT_HR` "net" — it is authoritatively **brut hors
+  reste**; the parser overrides the mislabel on purpose (do not "fix" it back).
 - **Parquet preferred, CSV fallback.** The backend reads Parquet if present, else
   the cumulative CSV. The Parquet output now ships (**jalon 2** done); both files
   are gitignored — in production the data lives in a Coolify-managed `dataset`

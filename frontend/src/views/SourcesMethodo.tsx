@@ -24,6 +24,13 @@ export default function SourcesMethodo() {
     staleTime: Number.POSITIVE_INFINITY,
   });
   const revisionsQ = useQuery({ queryKey: ["revisions"], queryFn: api.revisions });
+  // Meta carries `tranche_taux`, so a revised IFI tranche reads as its rate
+  // ("Tranche à 0,7 %") rather than an opaque ordinal (issue #15).
+  const metaQ = useQuery({
+    queryKey: ["meta"],
+    queryFn: api.meta,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
 
   return (
     <div className="space-y-12">
@@ -93,7 +100,7 @@ export default function SourcesMethodo() {
         ) : revisionsQ.isError ? (
           <ErrorState onRetry={() => revisionsQ.refetch()} height={120} />
         ) : (
-          <RevisionsTable revisions={revisionsQ.data ?? []} />
+          <RevisionsTable revisions={revisionsQ.data ?? []} meta={metaQ.data} />
         )}
       </Section>
 

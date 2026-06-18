@@ -39,7 +39,10 @@ The decision stands. The original "never tested against live servers" rationale 
 now partly overtaken: the **WID** API has been run live in production (a real
 `WID 2026` Millésime, ~157k observations), so the WID half of the once-feared
 network risk is validated. **DGFiP** still loads curated points / a local CSV (the
-live `.xlsx` parser is jalon 6.5, pending), and INSEE is curated by design. In
+live `.xlsx` parser is jalon 6.5, pending), and **INSEE** is fetched live from the
+Melodi API (issue #14, ADR 0006) — the earlier "curated by design" status is
+retired; INSEE now follows the same live-fetch → cached-file → curated-stub chain
+as the other Sources. In
 production, generation is realised via Coolify — a one-off `--profile data` run
 plus a Scheduled Task that `docker exec`s the always-on `pipeline-runner`
 (`docker-compose.production.yml`) into a persistent `dataset` volume — which keeps

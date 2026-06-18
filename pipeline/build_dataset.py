@@ -59,6 +59,7 @@ import datetime as dt
 import os
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 import pandas as pd
@@ -73,12 +74,18 @@ try:
 except ImportError:
     dgfip_parse = None  # type: ignore[assignment]  # parseur Excel DGFiP indisponible
 
+try:
+    import insee_parse
+except ImportError:
+    insee_parse = None  # type: ignore[assignment]  # parseur Melodi INSEE indisponible
+
 # ---------------------------------------------------------------------------
 # CONFIGURATION
 # ---------------------------------------------------------------------------
 
 DEFAULT_WID_PATH = Path("data/WID_data_FR.csv")
 DEFAULT_FISCAL_PATH = Path("data/dgfip_isf_ifi.csv")
+DEFAULT_INSEE_PATH = Path("data/insee_melodi.zip")
 # Outputs land in out/ — the dir the backend serves (compose bind-mounts
 # pipeline/out -> /data, read-only). See docker-compose.yml and .env.example.
 DEFAULT_OUT_DIR = Path("out")
@@ -119,13 +126,18 @@ WID_PERC = {
 }
 
 # --- INSEE -----------------------------------------------------------------
+# Offline FALLBACK STUB (tier 3). INSEE is now fetched live from the Melodi API
+# (`insee_parse`, issue #14); these are the former curated points kept only for
+# when neither the live fetch nor a cached file is available, so the build never
+# silently drops the INSEE Source. They are relabelled `brut_hors_reste`: INSEE's
+# headline published Gini (0.639→0.662) is in fact *brut hors reste*, not the
+# all-inclusive brut (issue #14 landmine; CONTEXT.md "Reste / hors reste").
 # (annee, groupe, indicateur, valeur, unite_valeur, note)
-# Hand-aligned curated data tables below; keep one row per line.
 # fmt: off
-INSEE_POINTS = [
-    (1998, "ensemble", "gini",            0.639, "indice", "Insee, enquete Patrimoine 1997-98"),
-    (2021, "ensemble", "gini",            0.662, "indice", "Insee, HVP 2020-21"),
-    (2021, "top50",    "part_patrimoine", 92.0,  "%",      "Insee, HVP 2020-21"),
+INSEE_STUB = [
+    (1998, "ensemble", "gini",            0.639, "indice", "Insee, enquete Patrimoine 1997-98 (brut hors reste)"),
+    (2021, "ensemble", "gini",            0.662, "indice", "Insee, HVP 2020-21 (brut hors reste)"),
+    (2021, "top50",    "part_patrimoine", 92.0,  "%",      "Insee, HVP 2020-21 (brut hors reste)"),
 ]
 
 # --- DGFiP ISF/IFI : points officiels pré-remplis --------------------------
@@ -148,11 +160,17 @@ DGFIP_POINTS = [
 # fmt: on
 
 # --- Déflateur IPC INSEE, base 2015 = 100 (à actualiser) -------------------
+# Les années 1998/2004/2010 couvrent les vagues HVP profondes d'INSEE (issue #14)
+# pour qu'elles soient déflatées plutôt que silencieusement écartées. Valeurs IPC
+# ensemble des ménages, base 2015 = 100 (moyennes annuelles INSEE).
 CPI_2015_100 = {
+    1998: 79.0,
     2000: 81.0,
     2003: 85.0,
+    2004: 86.5,
     2006: 89.0,
     2009: 92.0,
+    2010: 93.5,
     2012: 96.5,
     2015: 100.0,
     2018: 103.5,
@@ -255,22 +273,47 @@ def load_wid(path: Path, extraction_date: str, millesime: str) -> pd.DataFrame:
     return df
 
 
-def load_insee(extraction_date: str, millesime: str) -> pd.DataFrame:
-    rows = [
-        {
-            "annee": a,
-            "source": "INSEE",
-            "concept_patrimoine": "brut",
-            "unite": "menage",
-            "groupe": g,
-            "indicateur": ind,
-            "valeur": v,
-            "unite_valeur": uv,
-            "euros_constants": False,
-            "notes": note,
-        }
-        for (a, g, ind, v, uv, note) in INSEE_POINTS
-    ]
+def _parse_insee_source(path: Path) -> list[dict]:
+    """Parse a cached Melodi source at `path` (zip archive or data CSV) into tidy
+    rows (issue #14). Returns [] when nothing parses, so `load_insee` can fall
+    through to the curated stub. Dispatch is by content, not extension."""
+    if insee_parse is None or not path.exists():
+        return []
+    if zipfile.is_zipfile(path):
+        return insee_parse.parse_melodi_archive(path)
+    if path.is_file() and path.suffix.lower() == ".csv":
+        return insee_parse.parse_melodi_csv(path, path)
+    return []
+
+
+def load_insee(path: Path, extraction_date: str, millesime: str) -> pd.DataFrame:
+    """Charge les agrégats INSEE (Patrimoine / HVP) — issue #14.
+
+    Chaîne de repli à trois niveaux : (1) le fetch Melodi en ligne quand
+    `--download` est posé (matérialisé en archive temporaire par `main`, puis
+    passé ici) ; (2) sinon un fichier Melodi caché à `path` (archive ou CSV) ;
+    (3) sinon le petit stub curé `INSEE_STUB`, étiqueté `brut_hors_reste`.
+    """
+    rows = _parse_insee_source(path)
+    if rows:
+        print(f"[INSEE] {len(rows)} observations parsées depuis Melodi ({path}).")
+    else:
+        print("[INSEE] Aucun fichier Melodi exploitable -> stub curé (repli).")
+        rows = [
+            {
+                "annee": a,
+                "source": "INSEE",
+                "concept_patrimoine": "brut_hors_reste",
+                "unite": "menage",
+                "groupe": g,
+                "indicateur": ind,
+                "valeur": v,
+                "unite_valeur": uv,
+                "euros_constants": False,
+                "notes": note,
+            }
+            for (a, g, ind, v, uv, note) in INSEE_STUB
+        ]
     df = pd.DataFrame(_stamp(rows, extraction_date, millesime))
     print(f"[INSEE] {len(df)} observations chargées ({millesime}).")
     return df
@@ -514,8 +557,14 @@ def main(argv=None) -> int:
         help="dossier de sortie (défaut: out/ — servi par le backend)",
     )
     p.add_argument("--base-deflation", type=int, default=BASE_DEFLATION)
+    p.add_argument(
+        "--insee",
+        type=Path,
+        default=DEFAULT_INSEE_PATH,
+        help="fichier Melodi INSEE caché (archive .zip ou CSV) — repli si pas de --download",
+    )
     p.add_argument("--millesime-wid", default=f"WID {dt.date.today():%Y}")
-    p.add_argument("--millesime-insee", default="INSEE HVP 2020-21")
+    p.add_argument("--millesime-insee", default="INSEE ENQPAT 2026-05")
     p.add_argument("--millesime-dgfip", default=f"DGFiP {dt.date.today():%Y}")
     p.add_argument(
         "--download", action="store_true", help="récupère WID (API) et/ou DGFiP (Excel) en ligne"
@@ -555,7 +604,19 @@ def main(argv=None) -> int:
     else:
         wid = load_wid(args.wid, today, args.millesime_wid)
 
-    insee = load_insee(today, args.millesime_insee)
+    # --- INSEE : fetch Melodi en ligne (issue #14) puis parse, sinon fichier caché ---
+    # Comme DGFiP, on télécharge l'archive CSV groupée dans un dossier TEMPORAIRE
+    # (le `data/` de l'image n'est pas inscriptible en prod). Échec réseau OU
+    # parsing -> repli sur le fichier caché `--insee` puis sur le stub curé.
+    if args.download and netfetch is not None:
+        with tempfile.TemporaryDirectory(prefix="insee_src_") as tmp:
+            archive = netfetch.download_insee_melodi(dest_dir=Path(tmp))
+            if archive is not None:
+                insee = load_insee(archive, today, args.millesime_insee)
+            else:
+                insee = load_insee(args.insee, today, args.millesime_insee)
+    else:
+        insee = load_insee(args.insee, today, args.millesime_insee)
 
     # --- DGFiP : télécharge le LOT de fichiers IFI/ISF (jalon 6.5) puis parse ---
     # Il n'y a pas d'URL unique : on tire le registre `DGFIP_SOURCE_URLS` (3 liens

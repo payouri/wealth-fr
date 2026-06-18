@@ -8,6 +8,25 @@ import { cn } from "@/lib/utils";
 
 export const Select = SelectPrimitive.Root;
 export const SelectValue = SelectPrimitive.Value;
+export const SelectGroup = SelectPrimitive.Group;
+
+// Family header inside a grouped Groupe select (issue #15). Radix wires it to its
+// SelectGroup via aria-labelledby, so screen readers announce the family for every
+// option under it. Muted Label type (DESIGN.md §3) — quiet, not shouting.
+export function SelectLabel({
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Label>) {
+  return (
+    <SelectPrimitive.Label
+      className={cn(
+        "px-2 pt-2 pb-1 text-label font-medium tracking-[0.01em] text-muted-foreground",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
 
 export function SelectTrigger({
   className,

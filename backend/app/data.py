@@ -15,13 +15,29 @@ jalon 6) and the static Source metadata (`SOURCE_INFO`, jalon 8) live here too.
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 import duckdb
 
-from .models import Meta, Point, RevisionDiff, Rupture, Series, SourceInfo
+from .models import (
+    ConventionGroup,
+    Indicateur,
+    IndicateurSemantics,
+    Meta,
+    Point,
+    RevisionDiff,
+    RevisionValeur,
+    Rupture,
+    Schema,
+    SchemaRupture,
+    Series,
+    Source,
+    SourceInfo,
+    Unite,
+)
 
 PARQUET = Path(
     os.environ.get("DATASET_PARQUET", "pipeline/out/dataset_concentration_patrimoine_fr.parquet")
@@ -103,18 +119,45 @@ def _availability(con: duckdb.DuckDBPyConnection, relation: str) -> dict[str, di
     return out
 
 
+_TRANCHE_TAUX_RE = re.compile(r"taux marginal\s+([\d]+(?:[.,]\d+)?)\s*%")
+
+
+def _tranche_taux(con: duckdb.DuckDBPyConnection, relation: str) -> dict[str, float]:
+    """Map each `tranche_marginale_*` groupe to its IFI marginal rate, read from the
+    `(taux marginal X %)` fragment in `notes`. The rate is a stable data fact per
+    tranche (same across years), so a tranche is labelled by its rate rather than
+    its opaque ordinal (which starts at 2 and skips the 0,5 % band; CONTEXT.md,
+    issue #15). A tranche whose notes carry no parseable rate is simply omitted."""
+    rows = con.execute(
+        f"SELECT DISTINCT groupe, notes FROM {relation} WHERE groupe LIKE 'tranche_marginale_%' "
+        "ORDER BY groupe, notes"
+    ).fetchall()
+    out: dict[str, float] = {}
+    for groupe, notes in rows:
+        if notes is None or groupe in out:
+            continue
+        m = _TRANCHE_TAUX_RE.search(str(notes))
+        if m:
+            out[str(groupe)] = float(m.group(1).replace(",", "."))
+    return out
+
+
 def build_meta(con: duckdb.DuckDBPyConnection, relation: str) -> Meta:
     """Distinct dimension values + global `annee_min`/`annee_max` (serves `/api/meta`)."""
     bounds = con.execute(f"SELECT min(annee), max(annee) FROM {relation}").fetchone()
     annee_min, annee_max = bounds if bounds else (0, 0)
+    # The closed axes carry trusted dataset values; Pydantic still validates them
+    # at construction, so the cast only satisfies the typed contract at the
+    # DuckDB-string -> Literal boundary (ADR 0005).
     return Meta(
-        sources=_distinct(con, relation, "source"),
-        indicateurs=_distinct(con, relation, "indicateur"),
+        sources=cast(list[Source], _distinct(con, relation, "source")),
+        indicateurs=cast(list[Indicateur], _distinct(con, relation, "indicateur")),
         groupes=_distinct(con, relation, "groupe"),
         concepts=_distinct(con, relation, "concept_patrimoine"),
-        unites=_distinct(con, relation, "unite"),
+        unites=cast(list[Unite], _distinct(con, relation, "unite")),
         millesimes=_distinct(con, relation, "millesime_source"),
         availability=_availability(con, relation),
+        tranche_taux=_tranche_taux(con, relation),
         annee_min=int(annee_min),
         annee_max=int(annee_max),
     )
@@ -297,9 +340,14 @@ def resolve_series(
         [*params, millesime],
     ).fetchone()
 
+    # `unite` is derived from a known source (callers validate the source against
+    # `UNITE_BY_SOURCE` first — the closed Literal on /api/series, the explicit
+    # check in /api/compare), so it is always a real Unite here. Assert rather than
+    # `cast(Unite, None)`: never let `None` reach the closed `unite` field (ADR 0005).
+    assert unite is not None
     return Series(
         query=query,
-        unite=unite or "",
+        unite=cast(Unite, unite),
         concept_patrimoine=resolved_concept,
         unite_valeur=str(uv_row[0]) if uv_row else "",
         points=[Point(annee=int(a), valeur=float(v)) for a, v in point_rows],
@@ -363,6 +411,189 @@ def get_export_rows(**filters) -> list[dict]:
     return resolve_rows(con, _source_relation(con), **filters)
 
 
+def _in_clause(
+    column: str, values: list[str] | None, where: list[str], params: list[object]
+) -> None:
+    """Append an optional multi-value (comma-list) filter as a SQL `IN (…)` — the
+    union of the given values, or no constraint when `values` is falsy. The agent
+    surface's filters are all optional and select the union (ADR 0004)."""
+    if values:
+        placeholders = ", ".join("?" for _ in values)
+        where.append(f"{column} IN ({placeholders})")
+        params.extend(values)
+
+
+def resolve_observations(
+    con: duckdb.DuckDBPyConnection,
+    relation: str,
+    *,
+    source: list[str] | None = None,
+    indicateur: list[str] | None = None,
+    groupe: list[str] | None = None,
+    concept: list[str] | None = None,
+    unite: list[str] | None = None,
+    millesime: list[str] | None = None,
+    annee_min: int = 2000,
+    annee_max: int | None = None,
+    euros_constants: bool | None = None,
+    limit: int = 5000,
+    offset: int = 0,
+) -> tuple[list[dict], int]:
+    """The matching tidy Observation rows VERBATIM, plus the full matched `total`.
+
+    The faithful, unpinned agent read behind /api/observations (ADR 0004).
+    Deliberately does NOT call `_resolve_query` and NEVER raises
+    `AmbiguousConvention`: co-locating self-describing rows across several
+    Conventions is not merging — every row still carries its own `unite`,
+    `concept_patrimoine`, `millesime_source` and `date_extraction`. All matching
+    Millésimes are returned (Révisions visible inline, never deduped); both
+    nominal and `euros_constants` rows are returned unless narrowed. Filters are
+    optional multi-value comma-lists selecting the union; an omitted filter is
+    unconstrained. `total` is the full matched count (for truncation detection)
+    while `limit`/`offset` slice the returned page.
+    """
+    hi = annee_max if annee_max is not None else 9999
+    where: list[str] = ["annee BETWEEN ? AND ?"]
+    params: list[object] = [annee_min, hi]
+    _in_clause("source", source, where, params)
+    _in_clause("indicateur", indicateur, where, params)
+    _in_clause("groupe", groupe, where, params)
+    _in_clause("concept_patrimoine", concept, where, params)
+    _in_clause("unite", unite, where, params)
+    _in_clause("millesime_source", millesime, where, params)
+    if euros_constants is not None:
+        where.append("euros_constants = ?")
+        params.append(euros_constants)
+
+    clause = " AND ".join(where)
+    total_row = con.execute(f"SELECT count(*) FROM {relation} WHERE {clause}", params).fetchone()
+    total = int(total_row[0]) if total_row else 0
+
+    # Project `date_extraction` as text: DuckDB infers it as a DATE, but the tidy
+    # contract (and the Observation model) carries it as the raw extraction-date
+    # string — same posture as resolve_series/resolve_revisions, which str() it.
+    cols = ", ".join(
+        f"CAST({c} AS VARCHAR) AS {c}" if c == "date_extraction" else c for c in EXPORT_COLUMNS
+    )
+    # The ORDER BY must be a TOTAL order or paging is lossy: nominal vs
+    # euros_constants rows of one indicateur/year/Millésime tie on every
+    # HIST_KEYS column AND on millesime_source/date_extraction, so DuckDB may
+    # order such a tied pair differently between the count and a page query (or
+    # between two pages) — a consumer paging across the tie boundary would then
+    # see a row twice or miss one. Appending euros_constants + unite_valeur (the
+    # only columns that distinguish a level's nominal/deflated pair) breaks every
+    # remaining tie, making the slice deterministic.
+    rows = con.execute(
+        f"SELECT {cols} FROM {relation} WHERE {clause} "
+        f"ORDER BY {', '.join(HIST_KEYS)}, millesime_source, date_extraction, "
+        "euros_constants, unite_valeur "
+        "LIMIT ? OFFSET ?",
+        [*params, limit, offset],
+    ).fetchall()
+    return [dict(zip(EXPORT_COLUMNS, row, strict=True)) for row in rows], total
+
+
+def get_observations(**filters) -> tuple[list[dict], int]:
+    con = connect()
+    return resolve_observations(con, _source_relation(con), **filters)
+
+
+# `unite_valeur` values that are dimensionless — shares (%) and the Gini indice.
+# These are cross-source-comparable in *shape* (ADR 0003); everything else
+# (`euros`, `euros_constants_2021` = levels; `effectif`-style counts) is bound to
+# its Convention and must never be overlaid across Sources.
+_DIMENSIONLESS_UNITES_VALEUR = {"%", "indice"}
+
+
+def _is_dimensionless(unites_valeur: list[str]) -> bool:
+    """An indicateur is dimensionless only if EVERY `unite_valeur` it carries is
+    dimensionless (the in-band encoding of ADR 0003). A levels/count `unite_valeur`
+    disqualifies it — it is Convention-bound, not overlay-safe across Sources.
+
+    Closed-world note: the property truly lives at (indicateur, unite_valeur)
+    granularity — a single indicateur could in principle mix a dimensionless and a
+    levels `unite_valeur`. The global `all()` collapses that to one flag per
+    indicateur, which is the *safe* direction: it only ever reports dimensionless
+    when no Convention-bound `unite_valeur` is present, so it can never wrongly
+    advertise a levels/count value as cross-source-comparable (it errs toward
+    Convention-bound, never away from it)."""
+    return bool(unites_valeur) and all(uv in _DIMENSIONLESS_UNITES_VALEUR for uv in unites_valeur)
+
+
+# The guard rails as machine-readable English, sourced from the CONTEXT.md
+# non-negotiables (AGENTS.md). Published in /api/schema so an agent can self-police
+# rather than learn them out-of-band (ADR 0004).
+GUARD_RAIL_RULES = [
+    "Never aggregate or compare values across Conventions: a Convention is an "
+    "(unite + concept_patrimoine) pair, and values are only comparable within the "
+    "same Convention. Co-locating self-describing rows from several Conventions is "
+    "fine; merging them into one series is not.",
+    "euros_constants (deflated levels) apply only to levels — never deflate shares "
+    "(%) or Gini. A euros_constants_2021 row is added alongside the nominal one, "
+    "never replacing it.",
+    "Historisation is append-only: when a Source revises a past value, both "
+    "Millésimes coexist (a Révision). Observations are never overwritten; all "
+    "matching Millésimes are returned, labelled by millesime_source.",
+    "Traceability is a feature: source, millesime_source and date_extraction stay "
+    "visible for every displayed figure.",
+]
+
+
+def build_schema(con: duckdb.DuckDBPyConnection, relation: str) -> Schema:
+    """The machine-readable contract / agent entry point behind /api/schema (ADR
+    0004): the Conventions (distinct source → unite → concepts), the per-indicateur
+    value semantics with the `dimensionless` flag (in-band ADR 0003), the known
+    Ruptures (from `RUPTURES`), the historisation key (`HIST_KEYS`), and the guard
+    rails as English strings. Read-only; derived from the dataset + backend tables."""
+    conv_rows = con.execute(
+        f"SELECT DISTINCT source, unite, concept_patrimoine FROM {relation} "
+        "ORDER BY source, unite, concept_patrimoine"
+    ).fetchall()
+    grouped: dict[tuple[str, str], list[str]] = {}
+    for source, unite, concept in conv_rows:
+        grouped.setdefault((str(source), str(unite)), []).append(str(concept))
+    # Trusted dataset values for the closed axes; Pydantic validates on construct.
+    conventions = [
+        ConventionGroup(source=cast(Source, source), unite=cast(Unite, unite), concepts=concepts)
+        for (source, unite), concepts in grouped.items()
+    ]
+
+    ind_rows = con.execute(
+        f"SELECT DISTINCT indicateur, unite_valeur FROM {relation} "
+        "ORDER BY indicateur, unite_valeur"
+    ).fetchall()
+    by_indicateur: dict[str, list[str]] = {}
+    for indicateur, unite_valeur in ind_rows:
+        by_indicateur.setdefault(str(indicateur), []).append(str(unite_valeur))
+    indicateurs = [
+        IndicateurSemantics(
+            indicateur=cast(Indicateur, indicateur),
+            unites_valeur=unites_valeur,
+            dimensionless=_is_dimensionless(unites_valeur),
+        )
+        for indicateur, unites_valeur in by_indicateur.items()
+    ]
+
+    ruptures = [
+        SchemaRupture(source=cast(Source, source), annee=annee, label=label)
+        for source, breaks in RUPTURES.items()
+        for annee, label in breaks
+    ]
+
+    return Schema(
+        conventions=conventions,
+        indicateurs=indicateurs,
+        ruptures=ruptures,
+        historisation_key=list(HIST_KEYS),
+        rules=list(GUARD_RAIL_RULES),
+    )
+
+
+def get_schema() -> Schema:
+    con = connect()
+    return build_schema(con, _source_relation(con))
+
+
 def resolve_revisions(con: duckdb.DuckDBPyConnection, relation: str) -> list[RevisionDiff]:
     """Observations the source revised: same HIST_KEYS tuple, >1 millésime, and a
     value that actually changed (append-only historisation; CONTEXT.md).
@@ -389,22 +620,23 @@ def resolve_revisions(con: duckdb.DuckDBPyConnection, relation: str) -> list[Rev
         key = (int(annee), source, concept, unite, groupe, indicateur)
         diff = out.get(key)
         if diff is None:
+            # Trusted dataset values for the closed axes; Pydantic validates them.
             diff = RevisionDiff(
                 annee=int(annee),
-                source=str(source),
+                source=cast(Source, source),
                 concept_patrimoine=str(concept),
-                unite=str(unite),
+                unite=cast(Unite, unite),
                 groupe=str(groupe),
-                indicateur=str(indicateur),
+                indicateur=cast(Indicateur, indicateur),
                 valeurs=[],
             )
             out[key] = diff
         diff.valeurs.append(
-            {
-                "millesime_source": str(millesime),
-                "valeur": float(valeur),
-                "date_extraction": str(date_extraction) if date_extraction is not None else "",
-            }
+            RevisionValeur(
+                millesime_source=str(millesime),
+                valeur=float(valeur),
+                date_extraction=str(date_extraction) if date_extraction is not None else "",
+            )
         )
     return list(out.values())
 
@@ -423,9 +655,9 @@ SOURCE_INFO: list[SourceInfo] = [
     SourceInfo(
         source="INSEE",
         url="https://www.insee.fr",
-        convention="ménages · patrimoine brut",
+        convention="ménages · brut/net (et hors reste)",
         licence="Licence Ouverte / Open Licence (Etalab) — à vérifier par jeu de données",
-        attribution="INSEE — enquêtes Patrimoine / Histoire de vie et patrimoine (HVP)",
+        attribution="INSEE — enquêtes Patrimoine / Histoire de vie et patrimoine (HVP, API Melodi)",
     ),
     SourceInfo(
         source="DGFiP",

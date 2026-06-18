@@ -4,7 +4,7 @@ Glossary for a webapp that explores and visualizes the concentration of wealth i
 France since 2000, harmonizing three public sources whose measurement conventions
 are deliberately **not** interchangeable.
 
-> Domain terms below put the tidy data contract into words. The contract itself is the code: the Pydantic models in [`backend/app/models.py`](./backend/app/models.py) and the tidy-column list in [`backend/app/data.py`](./backend/app/data.py), mirrored in [`frontend/src/api/types.ts`](./frontend/src/api/types.ts).
+> Domain terms below put the tidy data contract into words. The contract itself is the code, and the backend is canonical: the Pydantic models in [`backend/app/models.py`](./backend/app/models.py) and the tidy-column list in [`backend/app/data.py`](./backend/app/data.py) become the OpenAPI schema, from which [`frontend/src/api/types.ts`](./frontend/src/api/types.ts) is generated one-way (ADR 0005) — never hand-edit the generated types.
 
 ## Language
 
