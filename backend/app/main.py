@@ -18,7 +18,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from . import data
-from .models import Meta, RevisionDiff, Series, SourceInfo
+from .models import (
+    Meta,
+    Observation,
+    ObservationsResponse,
+    RevisionDiff,
+    Schema,
+    Series,
+    SourceInfo,
+)
 
 app = FastAPI(
     title="Concentration du patrimoine en France",
@@ -158,3 +166,68 @@ def export_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _csv_list(value: str | None) -> list[str] | None:
+    """Parse an optional comma-separated query param into a list (the union of
+    values), or `None` when omitted/empty — an omitted filter is unconstrained
+    (ADR 0004)."""
+    if value is None:
+        return None
+    items = [v.strip() for v in value.split(",") if v.strip()]
+    return items or None
+
+
+@app.get("/api/observations", response_model=ObservationsResponse)
+def observations(
+    source: str | None = None,
+    indicateur: str | None = None,
+    groupe: str | None = None,
+    concept: str | None = None,
+    unite: str | None = None,
+    millesime: str | None = None,
+    annee_min: int = 2000,
+    annee_max: int | None = None,
+    euros_constants: bool | None = None,
+    limit: int = 5000,
+    offset: int = 0,
+):
+    """The matching tidy Observation rows, returned VERBATIM and self-describing.
+
+    The faithful, unpinned agent access surface (ADR 0004): unlike /api/series,
+    it NEVER resolves to one Convention and NEVER 422s on ambiguity — co-locating
+    labelled rows across Conventions is not merging. All filters are optional,
+    multi-value comma-lists selecting the union; an omitted filter is
+    unconstrained. All matching Millésimes are returned (Révisions inline, not
+    deduped); both nominal and euros_constants rows unless narrowed. An empty
+    match is a normal 200 with []. `total` is the full matched count (truncation
+    detection) while `limit`/`offset` slice the page.
+    """
+    filters = {
+        "source": _csv_list(source),
+        "indicateur": _csv_list(indicateur),
+        "groupe": _csv_list(groupe),
+        "concept": _csv_list(concept),
+        "unite": _csv_list(unite),
+        "millesime": _csv_list(millesime),
+        "annee_min": annee_min,
+        "annee_max": annee_max,
+        "euros_constants": euros_constants,
+    }
+    rows, total = data.get_observations(**filters, limit=limit, offset=offset)
+    return ObservationsResponse(
+        query=filters,
+        total=total,
+        limit=limit,
+        offset=offset,
+        observations=[Observation(**row) for row in rows],
+    )
+
+
+@app.get("/api/schema", response_model=Schema)
+def schema():
+    """The machine-readable contract / agent entry point (ADR 0004): the
+    Conventions, the per-indicateur value semantics with the `dimensionless` flag
+    (in-band ADR 0003), the known Ruptures, the historisation key, and the guard
+    rails as English strings. Read-only, public, GET-only."""
+    return data.get_schema()
