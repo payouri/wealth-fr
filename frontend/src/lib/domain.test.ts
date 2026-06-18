@@ -175,4 +175,33 @@ describe("groupeOptions", () => {
       { value: "tranche_marginale_5", label: "Tranche à 1,5 %" },
     ]);
   });
+
+  it("appends the active value when it is a non-curated/lattice code, so the trigger never goes blank", () => {
+    const meta = makeMeta({
+      availability: {
+        WID: {
+          // A top-tail seuil series whose availability head is a WID lattice bracket
+          // the curation deliberately drops.
+          seuil: ["p99p100", "p99.9p100", "ensemble", "top1"],
+        },
+      },
+    });
+    // `validComboForSource` would snap a fresh non-share groupe to the head, "p99p100".
+    const groups = groupeOptions(meta, "WID", "seuil", "p99p100");
+    const values = groups.flatMap((g) => g.options.map((o) => o.value));
+    expect(values).toContain("p99p100");
+    // appended ungrouped, labelled by its raw code (deep-link safe), as the last block.
+    const last = groups[groups.length - 1];
+    expect(last.header).toBeNull();
+    expect(last.options).toEqual([{ value: "p99p100", label: "p99p100" }]);
+  });
+
+  it("does not duplicate the active value when it is already a curated option", () => {
+    const meta = makeMeta({
+      availability: { WID: { seuil: ["ensemble", "top1", "top0_1"] } },
+    });
+    const groups = groupeOptions(meta, "WID", "seuil", "top1");
+    const values = groups.flatMap((g) => g.options.map((o) => o.value));
+    expect(values.filter((v) => v === "top1")).toHaveLength(1);
+  });
 });

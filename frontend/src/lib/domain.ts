@@ -133,8 +133,20 @@ export interface GroupeOptionGroup {
  *  Standalone groups (`redevables`, `patrimoine_sup_10M`) come first, ungrouped.
  *  Concentration fractions are the canonical set ∩ what this (source, indicateur)
  *  measures, dropping the raw percentile lattice. The DGFiP numbered families are
- *  kept in full, numerically sorted, under a family header each. */
-export function groupeOptions(meta: Meta, source: string, indicateur: string): GroupeOptionGroup[] {
+ *  kept in full, numerically sorted, under a family header each.
+ *
+ *  `active` is the currently-selected groupe. The curation deliberately drops the
+ *  WID percentile lattice, but `validComboForSource` can snap a non-share groupe to
+ *  a lattice code (the source's first available groupe) — or a deep link may hold
+ *  one. So when `active` is set but not among the curated options, it is appended as
+ *  an ungrouped fallback (labelled via `groupeLabel`), so the trigger never renders
+ *  blank and the code the reader actually has stays visible and re-selectable. */
+export function groupeOptions(
+  meta: Meta,
+  source: string,
+  indicateur: string,
+  active?: string,
+): GroupeOptionGroup[] {
   const available = new Set(meta.availability?.[source]?.[indicateur] ?? []);
   const groups: GroupeOptionGroup[] = [];
 
@@ -168,6 +180,14 @@ export function groupeOptions(meta: Meta, source: string, indicateur: string): G
         options: members.map(({ g }) => ({ value: g, label: groupeLabel(g, meta) })),
       });
     }
+  }
+
+  // Belt-and-suspenders: keep the active selection offered. If a non-curated code
+  // (e.g. a WID lattice bracket snapped in by `validComboForSource`, or a deep link)
+  // is selected but absent from every block above, append it ungrouped so the
+  // trigger stays legible and the value stays re-selectable (issue #15).
+  if (active && !groups.some((grp) => grp.options.some((o) => o.value === active))) {
+    groups.push({ header: null, options: [{ value: active, label: groupeLabel(active, meta) }] });
   }
 
   return groups;

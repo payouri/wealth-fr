@@ -37,11 +37,14 @@ export default function GroupeSelect({
   className,
   disabled,
 }: GroupeSelectProps) {
-  const groups = groupeOptions(meta, source, indicateur);
+  // Pass the active value so a non-curated code (a WID lattice bracket snapped in
+  // by `validComboForSource`, or a deep link) is always offered — the trigger never
+  // renders blank for a value that still plots a line (issue #15).
+  const groups = groupeOptions(meta, source, indicateur, value);
   return (
     <Select value={value} onValueChange={onValueChange} disabled={disabled}>
       <SelectTrigger className={className} aria-labelledby={labelledBy}>
-        <SelectValue />
+        <SelectValue placeholder="Choisir un groupe" />
       </SelectTrigger>
       <SelectContent>
         {groups.map((group) => (

@@ -114,7 +114,8 @@ def _tranche_taux(con: duckdb.DuckDBPyConnection, relation: str) -> dict[str, fl
     its opaque ordinal (which starts at 2 and skips the 0,5 % band; CONTEXT.md,
     issue #15). A tranche whose notes carry no parseable rate is simply omitted."""
     rows = con.execute(
-        f"SELECT DISTINCT groupe, notes FROM {relation} WHERE groupe LIKE 'tranche_marginale_%'"
+        f"SELECT DISTINCT groupe, notes FROM {relation} WHERE groupe LIKE 'tranche_marginale_%' "
+        "ORDER BY groupe, notes"
     ).fetchall()
     out: dict[str, float] = {}
     for groupe, notes in rows:
