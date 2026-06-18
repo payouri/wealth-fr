@@ -15,6 +15,7 @@ jalon 6) and the static Source metadata (`SOURCE_INFO`, jalon 8) live here too.
 from __future__ import annotations
 
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import NamedTuple
@@ -103,6 +104,28 @@ def _availability(con: duckdb.DuckDBPyConnection, relation: str) -> dict[str, di
     return out
 
 
+_TRANCHE_TAUX_RE = re.compile(r"taux marginal\s+([\d]+(?:[.,]\d+)?)\s*%")
+
+
+def _tranche_taux(con: duckdb.DuckDBPyConnection, relation: str) -> dict[str, float]:
+    """Map each `tranche_marginale_*` groupe to its IFI marginal rate, read from the
+    `(taux marginal X %)` fragment in `notes`. The rate is a stable data fact per
+    tranche (same across years), so a tranche is labelled by its rate rather than
+    its opaque ordinal (which starts at 2 and skips the 0,5 % band; CONTEXT.md,
+    issue #15). A tranche whose notes carry no parseable rate is simply omitted."""
+    rows = con.execute(
+        f"SELECT DISTINCT groupe, notes FROM {relation} WHERE groupe LIKE 'tranche_marginale_%'"
+    ).fetchall()
+    out: dict[str, float] = {}
+    for groupe, notes in rows:
+        if notes is None or groupe in out:
+            continue
+        m = _TRANCHE_TAUX_RE.search(str(notes))
+        if m:
+            out[str(groupe)] = float(m.group(1).replace(",", "."))
+    return out
+
+
 def build_meta(con: duckdb.DuckDBPyConnection, relation: str) -> Meta:
     """Distinct dimension values + global `annee_min`/`annee_max` (serves `/api/meta`)."""
     bounds = con.execute(f"SELECT min(annee), max(annee) FROM {relation}").fetchone()
@@ -115,6 +138,7 @@ def build_meta(con: duckdb.DuckDBPyConnection, relation: str) -> Meta:
         unites=_distinct(con, relation, "unite"),
         millesimes=_distinct(con, relation, "millesime_source"),
         availability=_availability(con, relation),
+        tranche_taux=_tranche_taux(con, relation),
         annee_min=int(annee_min),
         annee_max=int(annee_max),
     )

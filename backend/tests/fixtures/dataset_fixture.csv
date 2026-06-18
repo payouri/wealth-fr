@@ -16,3 +16,7 @@ annee,source,concept_patrimoine,unite,groupe,indicateur,valeur,unite_valeur,euro
 2017,DGFiP,total,foyer_fiscal,redevables,impot_moyen,5000.0,euros,false,2024-05-01,DGFiP 2024,DGFiP ISF 2017
 2018,DGFiP,immobilier,foyer_fiscal,redevables,impot_moyen,4000.0,euros,false,2024-05-01,DGFiP 2024,DGFiP IFI 2018 | RUPTURE ISF->IFI 2018
 2019,DGFiP,immobilier,foyer_fiscal,redevables,impot_moyen,4100.0,euros,false,2024-05-01,DGFiP 2024,DGFiP IFI 2019
+2018,DGFiP,immobilier,foyer_fiscal,tranche_marginale_2,nb_foyers,50000.0,foyers,false,2024-05-01,DGFiP 2024,"DGFiP IFI 2018 tranche (taux marginal 0,7 %)"
+2019,DGFiP,immobilier,foyer_fiscal,tranche_marginale_2,nb_foyers,51000.0,foyers,false,2024-05-01,DGFiP 2024,"DGFiP IFI 2019 tranche (taux marginal 0,7 %)"
+2018,DGFiP,immobilier,foyer_fiscal,tranche_marginale_3,nb_foyers,20000.0,foyers,false,2024-05-01,DGFiP 2024,"DGFiP IFI 2018 tranche (taux marginal 1,0 %)"
+2018,DGFiP,immobilier,foyer_fiscal,tranche_marginale_5,nb_foyers,3000.0,foyers,false,2024-05-01,DGFiP 2024,"DGFiP IFI 2018 tranche (taux marginal 1,5 %)"

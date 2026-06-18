@@ -29,6 +29,12 @@ class Meta(BaseModel):
     # The lists above are a union across sources; this map lets the UI offer a
     # Source only the figures it owns (WID shares vs DGFiP IFI déciles never mix).
     availability: dict[str, dict[str, list[str]]]
+    # Per `tranche_marginale_*` groupe, its IFI marginal rate as a number (e.g.
+    # {"tranche_marginale_2": 0.7}). Derived from the `(taux marginal X %)` fragment
+    # in `notes` (stable per tranche). Lets the UI label a tranche by its rate
+    # ("Tranche à 0,7 %") rather than the opaque ordinal — presentation only; the
+    # full `groupes`/`availability` lists are unchanged (issue #15).
+    tranche_taux: dict[str, float]
     annee_min: int
     annee_max: int
 

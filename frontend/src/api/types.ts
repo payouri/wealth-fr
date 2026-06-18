@@ -33,6 +33,11 @@ export interface Meta {
    *  The lists above are a union across sources; this map drives the filters so
    *  a source is only ever offered the figures it owns. */
   availability: Record<string, Record<string, string[]>>;
+  /** Per `tranche_marginale_*` groupe, its IFI marginal rate as a number (e.g.
+   *  `{ tranche_marginale_2: 0.7 }`). Lets the UI label a tranche by its rate
+   *  ("Tranche à 0,7 %") rather than the opaque workbook ordinal. Presentation
+   *  only — the `groupes`/`availability` lists are unchanged (#15). */
+  tranche_taux: Record<string, number>;
   annee_min: number;
   annee_max: number;
 }

@@ -37,3 +37,16 @@ def test_meta_reports_global_year_bounds(con, relation):
     meta = build_meta(con, relation)
     assert meta.annee_min == 2000
     assert meta.annee_max == 2021
+
+
+def test_meta_tranche_taux_maps_each_tranche_to_its_marginal_rate(con, relation):
+    """Each `tranche_marginale_*` groupe carries its marginal RATE as a number,
+    derived from the `(taux marginal X %)` fragment in `notes` (stable per tranche
+    across years), so the UI can label "Tranche à 0,7 %" instead of an opaque
+    ordinal that starts at 2 and skips the 0,5 % band (issue #15)."""
+    meta = build_meta(con, relation)
+    assert meta.tranche_taux == {
+        "tranche_marginale_2": 0.7,
+        "tranche_marginale_3": 1.0,
+        "tranche_marginale_5": 1.5,
+    }

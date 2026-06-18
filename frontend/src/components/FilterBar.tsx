@@ -1,4 +1,5 @@
 import type { ConventionChoice, Meta } from "@/api/types";
+import GroupeSelect from "@/components/GroupeSelect";
 import {
   Select,
   SelectContent,
@@ -157,21 +158,15 @@ export default function FilterBar({
             </Field>
           ) : (
             <Field label="Groupe" htmlFor="f-groupe">
-              <Select
+              <GroupeSelect
+                meta={meta}
+                source={params.source}
+                indicateur={params.indicateur}
                 value={params.groupe || sourceGroupes[0]}
                 onValueChange={(v) => update({ groupe: v })}
-              >
-                <SelectTrigger className="w-48" aria-labelledby="f-groupe">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {sourceGroupes.map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {groupeLabel(g)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                labelledBy="f-groupe"
+                className="w-56"
+              />
             </Field>
           )}
 
