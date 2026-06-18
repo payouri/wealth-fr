@@ -1,5 +1,9 @@
 """FastAPI app — the API contract (these route signatures + the Pydantic models
-in `models.py`; mirrored in `frontend/src/api/types.ts`).
+in `models.py`). FastAPI emits this as OpenAPI; `frontend/src/api/types.ts` is
+**generated** from that schema and never hand-edited (ADR 0005). The closed axes
+`source` / `indicateur` / `unite` are typed with the `models.py` Literals here too,
+so they become OpenAPI enums (FastAPI 422s an unknown value for free); `concept`
+and `groupe` stay open strings, discovered via /api/meta.
 
 All read endpoints are implemented: `/api/meta` + `/api/series` (jalon 3),
 `/api/compare` (jalon 5), `/api/revisions` (jalon 6), `/api/sources` (jalon 8)
@@ -12,21 +16,35 @@ from __future__ import annotations
 import csv
 import io
 import re
+from typing import Any
 
 from fastapi import FastAPI, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from . import data
 from .models import (
+    AmbiguousConventionDetail,
+    Indicateur,
     Meta,
     Observation,
     ObservationsResponse,
     RevisionDiff,
     Schema,
     Series,
+    Source,
     SourceInfo,
+    Unite,
 )
+
+# The 422 "pick a Convention" body, declared on every route that resolves a
+# single Convention (series, compare, export.csv). The body itself is still
+# produced at runtime by `_ambiguous_convention` below; this only surfaces the
+# shape to OpenAPI so it is generated for the frontend (ADR 0005).
+_AMBIGUOUS_CONVENTION_RESPONSES: dict[int | str, dict[str, Any]] = {
+    422: {"model": AmbiguousConventionDetail}
+}
 
 app = FastAPI(
     title="Concentration du patrimoine en France",
@@ -66,13 +84,13 @@ def meta():
     return data.get_meta()  # TODO(jalon 3)
 
 
-@app.get("/api/series", response_model=Series)
+@app.get("/api/series", response_model=Series, responses=_AMBIGUOUS_CONVENTION_RESPONSES)
 def series(
-    source: str,
-    indicateur: str,
+    source: Source,
+    indicateur: Indicateur,
     groupe: str,
     concept: str | None = None,
-    unite: str | None = None,
+    unite: Unite | None = None,
     annee_min: int = 2000,
     annee_max: int | None = None,
     euros_constants: bool = False,
@@ -98,15 +116,34 @@ def series(
     )
 
 
-@app.get("/api/compare", response_model=list[Series])
-def compare(indicateur: str, groupe: str, sources: str):
+@app.get("/api/compare", response_model=list[Series], responses=_AMBIGUOUS_CONVENTION_RESPONSES)
+def compare(indicateur: Indicateur, groupe: str, sources: str):
     """Same indicateur/groupe across several sources. `sources` = CSV list.
 
     Each returned series keeps its own Convention; never merged (jalon 5, ADR
     0003). A source still spanning more than one Convention surfaces the same
     422 "pick a Convention" contract as /api/series.
+
+    `sources` is a free-form CSV (not a closed Literal like /api/series'
+    `source`), so it is validated here: an unknown source is a client error and
+    422s the whole request — consistent with the closed `source` Literal on
+    /api/series and /api/export.csv, never a silently-degenerate 200.
     """
     source_list = [s.strip() for s in sources.split(",") if s.strip()]
+    unknown = [s for s in source_list if s not in data.UNITE_BY_SOURCE]
+    if unknown:
+        known = ", ".join(sorted(data.UNITE_BY_SOURCE))
+        raise RequestValidationError(
+            [
+                {
+                    "type": "enum",
+                    "loc": ("query", "sources"),
+                    "msg": f"unknown source(s) {unknown}; expected one of: {known}",
+                    "input": s,
+                }
+                for s in unknown
+            ]
+        )
     return data.get_compare(indicateur=indicateur, groupe=groupe, sources=source_list)
 
 
@@ -121,13 +158,13 @@ def sources():
     return data.get_sources()
 
 
-@app.get("/api/export.csv")
+@app.get("/api/export.csv", responses=_AMBIGUOUS_CONVENTION_RESPONSES)
 def export_csv(
-    source: str,
-    indicateur: str,
+    source: Source,
+    indicateur: Indicateur,
     groupe: str,
     concept: str | None = None,
-    unite: str | None = None,
+    unite: Unite | None = None,
     annee_min: int = 2000,
     annee_max: int | None = None,
     euros_constants: bool = False,

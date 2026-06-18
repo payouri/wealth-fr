@@ -1,10 +1,21 @@
-"""Pydantic schemas — the API-facing contract itself (this file and
-`frontend/src/api/types.ts` are its two mirrors; keep them in sync).
+"""Pydantic schemas — the API-facing contract and its SINGLE source of truth.
+
+This file is canonical. FastAPI emits these models (plus the route signatures in
+`main.py`) as OpenAPI; `frontend/src/api/types.ts` is **generated** from that
+OpenAPI by `openapi-typescript` and must never be hand-edited (ADR 0005). The
+generation is one-way: change Pydantic here, regenerate (`pnpm gen:contract`), and
+CI's `git diff --exit-code` gate fails if the committed artifacts drift.
 
 These mirror the tidy data schema (the `EXPORT_COLUMNS` list in `data.py` and the
 pipeline's harmonized output). The two structural dimensions,
 `unite` and `concept_patrimoine`, are the Convention and must be preserved and
 exposed everywhere (DB -> API -> UI). See CONTEXT.md.
+
+Vocabulary is split (ADR 0005): `Source` / `Unite` / `Indicateur` are **closed**
+`Literal`s used in both the models and the route params (so they become OpenAPI
+enums and FastAPI 422s an unknown value for free), while `concept_patrimoine` and
+`groupe` stay **open** `str`s, discovered at runtime via `/api/meta`. A new concept
+(e.g. INSEE `brut_hors_reste`) appears with no code change here.
 
 On `/api/series`, `concept` is a required query parameter and `unite` is derived
 from `source` (ADR 0002) — these are request-side rules; the response models
@@ -13,17 +24,43 @@ below always echo both back.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
+
+# --- Closed vocabulary (ADR 0005) --------------------------------------------
+# These three axes are CURATED, not raw data granularity, so they are closed
+# `Literal`s shared by the Pydantic models AND the FastAPI route params. Closing
+# them emits OpenAPI enums (-> generated TS unions) and makes FastAPI reject an
+# unknown value with 422 for free. `concept_patrimoine` / `groupe` are NOT here:
+# they stay open strings, discovered via /api/meta. Adding a value below is a
+# deliberate schema change (regenerate types.ts), not a doc edit.
+
+# The three public sources whose Conventions are not interchangeable (CONTEXT.md).
+Source = Literal["WID", "INSEE", "DGFiP"]
+
+# One Unité per Source (the population unit half of the Convention).
+Unite = Literal["adulte", "menage", "foyer_fiscal"]
+
+# The curated set of measures. Adding a 7th is an intentional schema change.
+Indicateur = Literal[
+    "part_patrimoine",
+    "gini",
+    "patrimoine_moyen",
+    "seuil",
+    "nb_foyers",
+    "impot_moyen",
+]
 
 
 class Meta(BaseModel):
     """Lists of available values, to drive first-level UI filters."""
 
-    sources: list[str]
-    indicateurs: list[str]
+    sources: list[Source]
+    indicateurs: list[Indicateur]
     groupes: list[str]
-    concepts: list[str]  # concept_patrimoine
-    unites: list[str]
+    concepts: list[str]  # concept_patrimoine — open vocabulary (ADR 0005)
+    unites: list[Unite]
     millesimes: list[str]
     # Per-source `{indicateur: [groupes…]}`: what each Source actually measures.
     # The lists above are a union across sources; this map lets the UI offer a
@@ -59,8 +96,8 @@ class Series(BaseModel):
     """
 
     query: dict
-    unite: str
-    concept_patrimoine: str
+    unite: Unite
+    concept_patrimoine: str  # open vocabulary (ADR 0005)
     unite_valeur: str
     points: list[Point]
     ruptures: list[Rupture] = []
@@ -68,22 +105,52 @@ class Series(BaseModel):
     date_extraction: str = ""  # traceability: when this millésime was pulled (§3, §7)
 
 
+class ConventionChoice(BaseModel):
+    """One Convention the caller may pin to resolve a 422 (ADR 0002). `unite` is
+    closed; `concept_patrimoine` stays an OPEN string (ADR 0005)."""
+
+    unite: str
+    concept_patrimoine: str
+
+
+class AmbiguousConventionDetail(BaseModel):
+    """The `422` body when filters still span more than one Convention (ADR 0002).
+
+    Wraps the choices the caller can pin. `error` is a closed literal so the
+    frontend can branch on it. The `@app.exception_handler` in `main.py` produces
+    this body at runtime under a `{"detail": …}` envelope; declaring the model via
+    `responses={422: {"model": AmbiguousConventionDetail}}` only makes it visible
+    to OpenAPI (and thus generated for the frontend)."""
+
+    error: Literal["ambiguous_convention"] = "ambiguous_convention"
+    choices: list[ConventionChoice]
+
+
+class RevisionValeur(BaseModel):
+    """One competing Millésime of a revised Observation: its value and the
+    `date_extraction` that orders the révision (append-only historisation)."""
+
+    millesime_source: str
+    valeur: float
+    date_extraction: str
+
+
 class RevisionDiff(BaseModel):
     """An observation that exists in more than one millésime (`/api/revisions`)."""
 
     annee: int
-    source: str
+    source: Source
     concept_patrimoine: str
-    unite: str
+    unite: Unite
     groupe: str
-    indicateur: str
-    valeurs: list[dict]  # [{millesime_source, valeur, date_extraction}, ...]
+    indicateur: Indicateur
+    valeurs: list[RevisionValeur]
 
 
 class SourceInfo(BaseModel):
     """Provenance + licence/attribution metadata (data in `data.py` `SOURCE_INFO`, served by `/api/sources`)."""
 
-    source: str
+    source: Source
     url: str
     convention: str
     licence: str
@@ -92,10 +159,10 @@ class SourceInfo(BaseModel):
 
 # --- Agent access surface (ADR 0004) -----------------------------------------
 # The models below back /api/observations and /api/schema — a programmatic /
-# agent-facing surface. They are INTENTIONALLY NOT mirrored into
-# `frontend/src/api/types.ts`: the "two mirrors must agree" rule (AGENTS.md)
-# governs only the UI contract, and the frontend does not consume these
-# endpoints. If a UI surface later consumes them, mirror them then (ADR 0004).
+# agent-facing surface. Under backend-canonical codegen (ADR 0005) they DO appear
+# in the generated `frontend/src/api/types.ts` (it is emitted from the OpenAPI
+# schema, which includes them); that is expected and harmless. The point that the
+# FRONTEND does not consume these endpoints still stands — they exist for agents.
 
 
 class Observation(BaseModel):
@@ -106,11 +173,11 @@ class Observation(BaseModel):
     Conventions is never merging (ADR 0004)."""
 
     annee: int
-    source: str
+    source: Source
     concept_patrimoine: str
-    unite: str
+    unite: Unite
     groupe: str
-    indicateur: str
+    indicateur: Indicateur
     valeur: float
     unite_valeur: str
     euros_constants: bool
@@ -139,8 +206,8 @@ class ConventionGroup(BaseModel):
     spans (one per Concept — e.g. DGFiP `total`/`immobilier` across the 2018
     Rupture). The Convention guard rail forbids comparing across these (CONTEXT.md)."""
 
-    source: str
-    unite: str
+    source: Source
+    unite: Unite
     concepts: list[str]
 
 
@@ -150,7 +217,7 @@ class IndicateurSemantics(BaseModel):
     dimensionless (cross-source-comparable in *shape*); `euros*` are levels and
     `effectif` is a count (both NOT dimensionless, never overlaid across Sources)."""
 
-    indicateur: str
+    indicateur: Indicateur
     unites_valeur: list[str]
     dimensionless: bool
 
@@ -160,7 +227,7 @@ class SchemaRupture(BaseModel):
     DGFiP 2018 ISF→IFI Rupture). Unlike `Rupture`, it names the Source it belongs
     to so an agent can attribute the break."""
 
-    source: str
+    source: Source
     annee: int
     label: str
 

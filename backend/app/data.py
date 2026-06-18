@@ -18,21 +18,25 @@ import os
 import re
 import tempfile
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 import duckdb
 
 from .models import (
     ConventionGroup,
+    Indicateur,
     IndicateurSemantics,
     Meta,
     Point,
     RevisionDiff,
+    RevisionValeur,
     Rupture,
     Schema,
     SchemaRupture,
     Series,
+    Source,
     SourceInfo,
+    Unite,
 )
 
 PARQUET = Path(
@@ -142,12 +146,15 @@ def build_meta(con: duckdb.DuckDBPyConnection, relation: str) -> Meta:
     """Distinct dimension values + global `annee_min`/`annee_max` (serves `/api/meta`)."""
     bounds = con.execute(f"SELECT min(annee), max(annee) FROM {relation}").fetchone()
     annee_min, annee_max = bounds if bounds else (0, 0)
+    # The closed axes carry trusted dataset values; Pydantic still validates them
+    # at construction, so the cast only satisfies the typed contract at the
+    # DuckDB-string -> Literal boundary (ADR 0005).
     return Meta(
-        sources=_distinct(con, relation, "source"),
-        indicateurs=_distinct(con, relation, "indicateur"),
+        sources=cast(list[Source], _distinct(con, relation, "source")),
+        indicateurs=cast(list[Indicateur], _distinct(con, relation, "indicateur")),
         groupes=_distinct(con, relation, "groupe"),
         concepts=_distinct(con, relation, "concept_patrimoine"),
-        unites=_distinct(con, relation, "unite"),
+        unites=cast(list[Unite], _distinct(con, relation, "unite")),
         millesimes=_distinct(con, relation, "millesime_source"),
         availability=_availability(con, relation),
         tranche_taux=_tranche_taux(con, relation),
@@ -333,9 +340,14 @@ def resolve_series(
         [*params, millesime],
     ).fetchone()
 
+    # `unite` is derived from a known source (callers validate the source against
+    # `UNITE_BY_SOURCE` first — the closed Literal on /api/series, the explicit
+    # check in /api/compare), so it is always a real Unite here. Assert rather than
+    # `cast(Unite, None)`: never let `None` reach the closed `unite` field (ADR 0005).
+    assert unite is not None
     return Series(
         query=query,
-        unite=unite or "",
+        unite=cast(Unite, unite),
         concept_patrimoine=resolved_concept,
         unite_valeur=str(uv_row[0]) if uv_row else "",
         points=[Point(annee=int(a), valeur=float(v)) for a, v in point_rows],
@@ -540,8 +552,9 @@ def build_schema(con: duckdb.DuckDBPyConnection, relation: str) -> Schema:
     grouped: dict[tuple[str, str], list[str]] = {}
     for source, unite, concept in conv_rows:
         grouped.setdefault((str(source), str(unite)), []).append(str(concept))
+    # Trusted dataset values for the closed axes; Pydantic validates on construct.
     conventions = [
-        ConventionGroup(source=source, unite=unite, concepts=concepts)
+        ConventionGroup(source=cast(Source, source), unite=cast(Unite, unite), concepts=concepts)
         for (source, unite), concepts in grouped.items()
     ]
 
@@ -554,7 +567,7 @@ def build_schema(con: duckdb.DuckDBPyConnection, relation: str) -> Schema:
         by_indicateur.setdefault(str(indicateur), []).append(str(unite_valeur))
     indicateurs = [
         IndicateurSemantics(
-            indicateur=indicateur,
+            indicateur=cast(Indicateur, indicateur),
             unites_valeur=unites_valeur,
             dimensionless=_is_dimensionless(unites_valeur),
         )
@@ -562,7 +575,7 @@ def build_schema(con: duckdb.DuckDBPyConnection, relation: str) -> Schema:
     ]
 
     ruptures = [
-        SchemaRupture(source=source, annee=annee, label=label)
+        SchemaRupture(source=cast(Source, source), annee=annee, label=label)
         for source, breaks in RUPTURES.items()
         for annee, label in breaks
     ]
@@ -607,22 +620,23 @@ def resolve_revisions(con: duckdb.DuckDBPyConnection, relation: str) -> list[Rev
         key = (int(annee), source, concept, unite, groupe, indicateur)
         diff = out.get(key)
         if diff is None:
+            # Trusted dataset values for the closed axes; Pydantic validates them.
             diff = RevisionDiff(
                 annee=int(annee),
-                source=str(source),
+                source=cast(Source, source),
                 concept_patrimoine=str(concept),
-                unite=str(unite),
+                unite=cast(Unite, unite),
                 groupe=str(groupe),
-                indicateur=str(indicateur),
+                indicateur=cast(Indicateur, indicateur),
                 valeurs=[],
             )
             out[key] = diff
         diff.valeurs.append(
-            {
-                "millesime_source": str(millesime),
-                "valeur": float(valeur),
-                "date_extraction": str(date_extraction) if date_extraction is not None else "",
-            }
+            RevisionValeur(
+                millesime_source=str(millesime),
+                valeur=float(valeur),
+                date_extraction=str(date_extraction) if date_extraction is not None else "",
+            )
         )
     return list(out.values())
 
